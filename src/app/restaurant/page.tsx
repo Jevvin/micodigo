@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../utils/supabaseClient';
 import { Menu, User, Phone, Mail, Lock } from 'lucide-react';
 
-export default function RestaurantAuth(): JSX.Element {
+export default function RestaurantAuth() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'register' | 'login'>('login');
@@ -49,8 +49,12 @@ export default function RestaurantAuth(): JSX.Element {
 
       router.push('/dashboard');
 
-    } catch (error: any) {
-      alert(`❌ Error: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        alert(`❌ Error: ${error.message}`);
+      } else {
+        alert('❌ Error desconocido');
+      }
     } finally {
       setLoading(false);
     }
@@ -68,8 +72,12 @@ export default function RestaurantAuth(): JSX.Element {
 
       router.push('/dashboard');
 
-    } catch (error: any) {
-      alert(`❌ Error: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        alert(`❌ Error: ${error.message}`);
+      } else {
+        alert('❌ Error desconocido');
+      }
     } finally {
       setLoading(false);
     }
