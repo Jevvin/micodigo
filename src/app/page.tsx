@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { supabase } from './utils/supabaseClient';
 import Link from 'next/link';
 
-export default function Home(): JSX.Element {
+export default function Home() {
 
   useEffect(() => {
     async function testConnection() {
