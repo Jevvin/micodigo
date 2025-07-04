@@ -30,7 +30,7 @@ export default async function DashboardLayout({
   }
 
   // ⚡️ Obtener datos del restaurante
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("restaurants")
     .select("name")
     .eq("user_id", session.user.id)
