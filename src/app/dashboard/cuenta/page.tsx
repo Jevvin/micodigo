@@ -95,8 +95,12 @@ export default function CuentaPage() {
       alert("✅ Datos actualizados correctamente.");
       router.refresh();
 
-    } catch (err: any) {
-      setError(err.message || "Ocurrió un error al guardar.");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Ocurrió un error al guardar.");
+      }
     } finally {
       setSaving(false);
     }

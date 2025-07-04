@@ -10,7 +10,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "@/components/ui/sidebar"
 import { cva, type VariantProps } from "class-variance-authority"

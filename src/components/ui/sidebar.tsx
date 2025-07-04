@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { HeaderBase } from "@/app/dashboard/components/header-base"
 
 export * from "./sidebar-exports"
 
@@ -48,19 +47,19 @@ export const SidebarProvider = React.forwardRef<
 >(
   (
     {
-      defaultOpen = !useIsMobile(),
+      defaultOpen,
       open: openProp,
       onOpenChange: setOpenProp,
       className,
-      style,
       children,
       ...props
     },
     ref
   ) => {
     const isMobile = useIsMobile()
+    const defaultOpenValue = defaultOpen ?? !isMobile
     const [openMobile, setOpenMobile] = React.useState(false)
-    const [_open, _setOpen] = React.useState(defaultOpen)
+    const [_open, _setOpen] = React.useState(defaultOpenValue)
     const open = openProp ?? _open
 
     const setOpen = React.useCallback(
