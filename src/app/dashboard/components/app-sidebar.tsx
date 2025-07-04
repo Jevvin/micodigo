@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Settings,
 } from "lucide-react"
+
 import {
   Sidebar,
   SidebarContent,
@@ -19,8 +20,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
+
+// Importa el header base para que sea consistente en mobile y desktop
+import { HeaderBase } from "./header-base"
 
 interface AppSidebarProps {
   activePanel: string
@@ -33,7 +37,8 @@ const menuItems = [
   { id: "clientes", title: "Clientes", icon: Users, description: "Base de datos de clientes" },
   { id: "inventario", title: "Inventario", icon: Package, description: "Stock de productos" },
   { id: "menu", title: "Personalizar Menú", icon: MenuIcon, description: "Categorías y productos" },
-  { id: "configuracion", title: "Configuración", icon: Settings, description: "Ajustes del restaurante" },
+  { id: "cuenta", title: "Cuenta", icon: Users, description: "Datos del administrador" },
+  { id: "configuracion", title: "Negocio", icon: Settings, description: "Configuración del negocio" },
 ]
 
 export function AppSidebar({ activePanel }: AppSidebarProps) {
@@ -41,12 +46,14 @@ export function AppSidebar({ activePanel }: AppSidebarProps) {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
-        <div className="flex items-center space-x-2">
-          <MenuIcon className="h-6 w-6 text-orange-600" />
-          <span className="font-semibold text-lg">RestaurantOS</span>
-        </div>
-      </SidebarHeader>
+      {/* HeaderBase se usa aquí para que sea igual en desktop y mobile */}
+      <HeaderBase
+        text="RestaurantOS"
+        variant="sidebar"
+      >
+        {/* Botón solo visible en mobile */}
+        <SidebarTrigger className="ml-auto md:hidden p-2 focus:outline-none focus:ring-0 border-none shadow-none" />
+      </HeaderBase>
 
       <SidebarContent>
         <SidebarGroup>

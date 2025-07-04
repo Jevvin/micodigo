@@ -26,6 +26,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
+      <head>
+        {/* Meta viewport obligatorio para responsive completo en móviles y tablets */}
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground antialiased`}
       >

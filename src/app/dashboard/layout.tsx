@@ -1,88 +1,56 @@
-"use client";
+// src/app/dashboard/layout.tsx
 
-// 🧩 Librerías y hooks de Next.js
-import { usePathname } from "next/navigation";
-import React, { useEffect, useState } from "react";
-
-// 🧩 Componentes internos del dashboard
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/app/utils/supabaseServer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./components/app-sidebar";
 import DashboardHeader from "./components/dashboard-header";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-
-// 🧩 Cliente Supabase para autenticación y datos
-import { supabase } from "@/app/utils/supabaseClient";
 
 /**
  * Layout principal del Dashboard.
- * - Incluye Sidebar a la izquierda y el contenido principal a la derecha.
- * - Muestra el Header con el nombre del restaurante y botones de usuario.
- * - Protege rutas dinámicas y carga datos desde Supabase.
+ * - Protegido en el servidor: redirige al login si no hay sesión.
+ * - Obtiene el nombre del restaurante desde Supabase en el servidor.
+ * - Incluye Sidebar, Header y contenido dinámico.
  */
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Estado local para el nombre del restaurante
-  const [restaurantName, setRestaurantName] = useState<string>("Cargando...");
+  // ⚡️ Nuevo: Await la creación del cliente
+  const supabase = await createSupabaseServerClient();
 
-  // Obtener la ruta actual y marcar la sección activa en el sidebar
-  const pathname = usePathname();
-  const pathParts = pathname.split("/");
-  const section = pathParts[2] || "inicio";
+  // ⚡️ Obtener la sesión
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  /**
-   * Efecto que se ejecuta al montar el layout:
-   * Consulta Supabase para obtener el nombre del restaurante del usuario autenticado.
-   */
-  useEffect(() => {
-    async function fetchRestaurantName() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
+  if (!session) {
+    redirect("/restaurant");
+  }
 
-        if (!user) {
-          setRestaurantName("No autenticado");
-          return;
-        }
+  // ⚡️ Obtener datos del restaurante
+  const { data, error } = await supabase
+    .from("restaurants")
+    .select("name")
+    .eq("user_id", session.user.id)
+    .single();
 
-        const { data, error } = await supabase
-          .from("restaurants")
-          .select("name")
-          .eq("user_id", user.id)
-          .single();
-
-        if (error) {
-          console.error("❌ Error obteniendo restaurante:", error.message);
-          setRestaurantName("Error al cargar");
-        } else {
-          setRestaurantName(data?.name || "Restaurante");
-        }
-      } catch (err: any) {
-        console.error("❌ Error general:", err.message);
-        setRestaurantName("Error");
-      }
-    }
-
-    fetchRestaurantName();
-  }, []);
+  const restaurantName = data?.name || "Restaurante";
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen bg-gray-50">
+      <div className="flex min-h-svh w-screen overflow-x-hidden bg-gray-50">
         {/* Barra lateral izquierda */}
-        <AppSidebar activePanel={section} />
+        <AppSidebar activePanel="" />
 
         {/* Contenido principal */}
-        <div className="flex flex-col flex-1 w-full min-w-0 overflow-hidden">
-          {/* Header superior con SidebarTrigger y nombre */}
-          <DashboardHeader restaurantName={restaurantName}>
-            {/* El botón de retraer sidebar, siempre visible */}
-            <SidebarTrigger />
-          </DashboardHeader>
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          {/* Header superior con nombre dinámico del restaurante */}
+          <DashboardHeader restaurantName={restaurantName} />
 
           {/* Área dinámica de contenido */}
-          <main className="flex-1 w-full min-w-0 overflow-auto">
+          <main className="flex-1 min-w-0 overflow-auto">
             {children}
           </main>
         </div>

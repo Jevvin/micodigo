@@ -30,6 +30,7 @@ export default function RestaurantAuth() {
       });
 
       if (signUpError) throw signUpError;
+
       const userId = data?.user?.id;
       if (!userId) throw new Error('No se obtuvo el ID del usuario creado.');
 
@@ -47,7 +48,14 @@ export default function RestaurantAuth() {
 
       if (insertError) throw insertError;
 
-      router.push('/dashboard');
+      // Guardar en localStorage
+      localStorage.setItem('restaurantName', formData.name);
+
+      // Delay mínimo para asegurar que la cookie se escriba
+setTimeout(() => {
+  window.location.href = "/dashboard";
+}, 100);
+
 
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -70,7 +78,27 @@ export default function RestaurantAuth() {
       });
       if (error) throw error;
 
-      router.push('/dashboard');
+      // Obtener usuario
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuario no autenticado');
+
+      // Obtener el nombre del restaurante
+      const { data: restaurant, error: fetchError } = await supabase
+        .from('restaurants')
+        .select('name')
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Guardar en localStorage
+      localStorage.setItem('restaurantName', restaurant.name);
+
+      // Delay mínimo para asegurar que la cookie se escriba
+setTimeout(() => {
+  window.location.href = "/dashboard";
+}, 100);
+
 
     } catch (error: unknown) {
       if (error instanceof Error) {
