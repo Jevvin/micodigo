@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/app/utils/supabaseServer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./components/app-sidebar";
 import DashboardHeader from "./components/dashboard-header";
+import { Toaster } from "@/components/ui/toaster"; // ✅ IMPORTA EL TOASTER
 
 /**
  * Layout principal del Dashboard.
@@ -17,23 +18,22 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // ⚡️ Nuevo: Await la creación del cliente
   const supabase = await createSupabaseServerClient();
 
-  // ⚡️ Obtener la sesión
+  // ✅ Pedir user con validación segura
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect("/restaurant");
   }
 
-  // ⚡️ Obtener datos del restaurante
+  // ✅ Obtener datos del restaurante
   const { data } = await supabase
     .from("restaurants")
     .select("name")
-    .eq("user_id", session.user.id)
+    .eq("user_id", user.id)
     .single();
 
   const restaurantName = data?.name || "Restaurante";
@@ -55,6 +55,8 @@ export default async function DashboardLayout({
           </main>
         </div>
       </div>
+
+      <Toaster />  {/* ✅ AÑADIDO AQUÍ PARA NOTIFICACIONES */}
     </SidebarProvider>
   );
 }

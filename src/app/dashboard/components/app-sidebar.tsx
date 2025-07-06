@@ -37,8 +37,8 @@ const menuItems = [
   { id: "clientes", title: "Clientes", icon: Users, description: "Base de datos de clientes" },
   { id: "inventario", title: "Inventario", icon: Package, description: "Stock de productos" },
   { id: "menu", title: "Personalizar Menú", icon: MenuIcon, description: "Categorías y productos" },
-  { id: "cuenta", title: "Cuenta", icon: Users, description: "Datos del administrador" },
-  { id: "configuracion", title: "Negocio", icon: Settings, description: "Configuración del negocio" },
+  { id: "cuenta", title: "Cuenta", icon: Users, description: "Cuenta del administrador" },
+  { id: "negocio", title: "Negocio", icon: Settings, description: "Configuración del negocio" },
 ]
 
 export function AppSidebar({ activePanel }: AppSidebarProps) {
@@ -46,12 +46,10 @@ export function AppSidebar({ activePanel }: AppSidebarProps) {
 
   return (
     <Sidebar>
-      {/* HeaderBase se usa aquí para que sea igual en desktop y mobile */}
       <HeaderBase
         text="RestaurantOS"
         variant="sidebar"
       >
-        {/* Botón solo visible en mobile */}
         <SidebarTrigger className="ml-auto md:hidden p-2 focus:outline-none focus:ring-0 border-none shadow-none" />
       </HeaderBase>
 
@@ -63,7 +61,17 @@ export function AppSidebar({ activePanel }: AppSidebarProps) {
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
-                    onClick={() => router.push(item.id === "inicio" ? '/dashboard' : `/dashboard/${item.id}`)}
+                    onClick={() => {
+                      if (item.id === "inicio") {
+                        router.push('/dashboard')
+                      } else if (item.id === "cuenta") {
+                        router.push('/dashboard/cuenta')
+                      } else if (item.id === "negocio") {
+                        router.push('/dashboard/negocio')
+                      } else {
+                        router.push(`/dashboard/${item.id}`)
+                      }
+                    }}
                     isActive={activePanel === item.id}
                     className="w-full justify-start"
                   >

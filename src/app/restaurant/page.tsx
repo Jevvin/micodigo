@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../utils/supabaseClient';
+import { generateSlug } from "@/app/utils/generateSlug";
 import { Menu, User, Phone, Mail, Lock } from 'lucide-react';
 
 export default function RestaurantAuth() {
@@ -34,7 +35,11 @@ export default function RestaurantAuth() {
       const userId = data?.user?.id;
       if (!userId) throw new Error('No se obtuvo el ID del usuario creado.');
 
-      const { error: insertError } = await supabase
+      // Generar slug básico
+      const rawSlug = generateSlug(formData.name);
+
+      // Insertar restaurante sin slug aún para obtener el ID
+      const { data: newRestaurant, error: insertError } = await supabase
         .from('restaurants')
         .insert([
           {
@@ -44,18 +49,29 @@ export default function RestaurantAuth() {
             phone: formData.phone,
             email: formData.email,
           },
-        ]);
+        ])
+        .select('id')
+        .single();
 
       if (insertError) throw insertError;
 
-      // Guardar en localStorage
+      if (!newRestaurant?.id) throw new Error("No se obtuvo ID del restaurante.");
+
+      // Crear slug definitivo con ID
+      const finalSlug = `${newRestaurant.id}-${rawSlug}`;
+
+      // Actualizar con slug
+      const { error: updateError } = await supabase
+        .from('restaurants')
+        .update({ slug: finalSlug })
+        .eq('id', newRestaurant.id);
+
+      if (updateError) throw updateError;
+
       localStorage.setItem('restaurantName', formData.name);
-
-      // Delay mínimo para asegurar que la cookie se escriba
-setTimeout(() => {
-  window.location.href = "/dashboard";
-}, 100);
-
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 100);
 
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -78,11 +94,9 @@ setTimeout(() => {
       });
       if (error) throw error;
 
-      // Obtener usuario
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
 
-      // Obtener el nombre del restaurante
       const { data: restaurant, error: fetchError } = await supabase
         .from('restaurants')
         .select('name')
@@ -91,14 +105,10 @@ setTimeout(() => {
 
       if (fetchError) throw fetchError;
 
-      // Guardar en localStorage
       localStorage.setItem('restaurantName', restaurant.name);
-
-      // Delay mínimo para asegurar que la cookie se escriba
-setTimeout(() => {
-  window.location.href = "/dashboard";
-}, 100);
-
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 100);
 
     } catch (error: unknown) {
       if (error instanceof Error) {

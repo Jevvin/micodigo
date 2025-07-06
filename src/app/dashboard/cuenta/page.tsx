@@ -26,28 +26,18 @@ export default function CuentaPage() {
     const fetchUserData = async () => {
       setLoading(true);
       const { data: { user }, error } = await supabase.auth.getUser();
+
       if (error || !user) {
         setError("No se pudo obtener el usuario.");
         setLoading(false);
         return;
       }
 
-      // Consulta en la tabla restaurants
-      const { data, error: fetchError } = await supabase
-        .from("restaurants")
-        .select("name, phone, email")
-        .eq("user_id", user.id)
-        .single();
-
-      if (fetchError) {
-        setError("No se pudo obtener los datos del restaurante.");
-      } else if (data) {
-        setUserData({
-          name: data.name || "",
-          phone: data.phone || "",
-          email: data.email || "",
-        });
-      }
+      setUserData({
+        name: user.user_metadata?.full_name ?? "",
+        phone: user.user_metadata?.phone ?? "",
+        email: user.email ?? "",
+      });
 
       setLoading(false);
     };
@@ -64,33 +54,30 @@ export default function CuentaPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuario no autenticado.");
 
-      // Actualiza en la tabla restaurants
-      const { error: updateError } = await supabase
-        .from("restaurants")
-        .update({
-          name: userData.name,
-          phone: userData.phone,
-          email: userData.email,
-        })
-        .eq("user_id", user.id);
-
-      if (updateError) throw updateError;
-
-      // Actualiza email y contraseña en auth si se cambió
+      // ✅ Actualiza email si cambió
       if (userData.email !== user.email) {
-        const { error: emailError } = await supabase.auth.updateUser({ email: userData.email });
+        const { error: emailError } = await supabase.auth.updateUser({
+          email: userData.email
+        });
         if (emailError) throw emailError;
       }
 
+      // ✅ Actualiza password si se llenó
       if (password) {
-        const { error: passwordError } = await supabase.auth.updateUser({ password });
+        const { error: passwordError } = await supabase.auth.updateUser({
+          password
+        });
         if (passwordError) throw passwordError;
       }
 
-      // Actualiza el localStorage si el nombre cambió
-      if (userData.name) {
-        localStorage.setItem("restaurantName", userData.name);
-      }
+      // ✅ Actualiza user_metadata (nombre y teléfono)
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: {
+          full_name: userData.name,
+          phone: userData.phone,
+        },
+      });
+      if (metadataError) throw metadataError;
 
       alert("✅ Datos actualizados correctamente.");
       router.refresh();
