@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   TrendingUp,
@@ -26,10 +26,6 @@ import {
 // Importa el header base para que sea consistente en mobile y desktop
 import { HeaderBase } from "./header-base"
 
-interface AppSidebarProps {
-  activePanel: string
-}
-
 const menuItems = [
   { id: "inicio", title: "Inicio", icon: LayoutDashboard, description: "Vista rápida del negocio" },
   { id: "pedidos", title: "Pedidos en Vivo", icon: AlertCircle, description: "Pantalla de cocina", badge: "PDV" },
@@ -41,8 +37,12 @@ const menuItems = [
   { id: "negocio", title: "Negocio", icon: Settings, description: "Configuración del negocio" },
 ]
 
-export function AppSidebar({ activePanel }: AppSidebarProps) {
+export function AppSidebar() {
   const router = useRouter()
+  const pathname = usePathname()
+
+  // Determinar panel activo desde la ruta
+  const activePanel = pathname.split("/").pop() || ""
 
   return (
     <Sidebar>
@@ -64,10 +64,6 @@ export function AppSidebar({ activePanel }: AppSidebarProps) {
                     onClick={() => {
                       if (item.id === "inicio") {
                         router.push('/dashboard')
-                      } else if (item.id === "cuenta") {
-                        router.push('/dashboard/cuenta')
-                      } else if (item.id === "negocio") {
-                        router.push('/dashboard/negocio')
                       } else {
                         router.push(`/dashboard/${item.id}`)
                       }

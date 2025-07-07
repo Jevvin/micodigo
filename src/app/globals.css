@@ -2,11 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base font family */
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 /* Utility layer */
 @layer utilities {
   .text-balance {

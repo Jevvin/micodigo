@@ -1,5 +1,3 @@
-// src/app/dashboard/layout.tsx
-
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/app/utils/supabaseServer";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -42,7 +40,7 @@ export default async function DashboardLayout({
     <SidebarProvider>
       <div className="flex min-h-svh w-screen overflow-x-hidden bg-gray-50">
         {/* Barra lateral izquierda */}
-        <AppSidebar activePanel="" />
+        <AppSidebar />
 
         {/* Contenido principal */}
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">

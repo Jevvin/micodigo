@@ -28,6 +28,16 @@ export default function NegocioPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const dayTranslations: Record<string, string> = {
+    monday: "Lunes",
+    tuesday: "Martes",
+    wednesday: "Miércoles",
+    thursday: "Jueves",
+    friday: "Viernes",
+    saturday: "Sábado",
+    sunday: "Domingo",
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -208,192 +218,189 @@ export default function NegocioPage() {
         <Separator />
         <CardContent className="space-y-6">
           <Tabs defaultValue="general" className="space-y-6">
-  <TabsList className="flex overflow-x-auto gap-2 sm:grid sm:grid-cols-4">
-    <TabsTrigger value="general">General</TabsTrigger>
-    <TabsTrigger value="contact">Contacto</TabsTrigger>
-    <TabsTrigger value="hours">Horarios</TabsTrigger>
-    <TabsTrigger value="delivery">Delivery</TabsTrigger>
-  </TabsList>
+            <TabsList className="flex overflow-x-auto gap-2 sm:grid sm:grid-cols-4">
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="contact">Contacto</TabsTrigger>
+              <TabsTrigger value="hours">Horarios</TabsTrigger>
+              <TabsTrigger value="delivery">Delivery</TabsTrigger>
+            </TabsList>
 
-  {/* TAB GENERAL */}
-  <TabsContent value="general" className="space-y-6">
-    <div>
-      <Label>URL Personalizada (slug)</Label>
-      <div className="flex items-center space-x-2">
-        <Input
-          placeholder="mi-restaurante-unico"
-          value={restaurant.slug || ""}
-          onChange={(e) => {
-            const newSlug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-");
-            setRestaurant({ ...restaurant, slug: newSlug });
-            checkSlugAvailability(newSlug);
-          }}
-        />
-        {slugStatus === "checking" && <span className="text-sm text-gray-500">Verificando...</span>}
-        {slugStatus === "available" && <CheckCircle className="text-green-500" size={20} />}
-        {slugStatus === "taken" && <XCircle className="text-red-500" size={20} />}
-        <Button
-          variant="outline"
-          type="button"
-          onClick={() => {
-            const url = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/${restaurant.slug}`;
-            window.open(url, "_blank");
-          }}
-          disabled={!restaurant.slug}
-        >
-          Ver Menú
-        </Button>
-      </div>
-      <p className="text-sm text-gray-500">Tus clientes podrán verla y ordenarte aquí.</p>
-    </div>
-
-    <div>
-      <Label>Nombre del Restaurante</Label>
-      <Input value={restaurant.name} onChange={(e) => setRestaurant({ ...restaurant, name: e.target.value })} />
-    </div>
-    <div>
-      <Label>Descripción</Label>
-      <Textarea value={restaurant.description || ""} onChange={(e) => setRestaurant({ ...restaurant, description: e.target.value })} />
-    </div>
-    <div>
-      <Label>Dirección</Label>
-      <Textarea value={restaurant.address || ""} onChange={(e) => setRestaurant({ ...restaurant, address: e.target.value })} />
-    </div>
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <Label>Imagen de Portada</Label>
-        {restaurant.cover_image_url && (
-          <img src={restaurant.cover_image_url} className="w-full h-32 object-cover rounded" alt="Portada" />
-        )}
-        <Input type="file" accept="image/*" onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleUploadImage(file, "cover");
-        }} />
-      </div>
-      <div>
-        <Label>Logo / Imagen de Perfil</Label>
-        {restaurant.logo_image_url && (
-          <img src={restaurant.logo_image_url} className="w-24 h-24 object-cover rounded-full mx-auto" alt="Logo" />
-        )}
-        <Input type="file" accept="image/*" onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleUploadImage(file, "profile");
-        }} />
-      </div>
-    </div>
-  </TabsContent>
-
-  {/* TAB CONTACT */}
-  <TabsContent value="contact" className="space-y-4">
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <Label>Teléfono</Label>
-        <Input value={restaurant.phone} onChange={(e) => setRestaurant({ ...restaurant, phone: e.target.value })} />
-      </div>
-      <div>
-        <Label>Email</Label>
-        <Input type="email" value={restaurant.email} onChange={(e) => setRestaurant({ ...restaurant, email: e.target.value })} />
-      </div>
-    </div>
-  </TabsContent>
-
-  {/* TAB HORARIOS */}
-  <TabsContent value="hours" className="space-y-6">
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Clock className="h-5 w-5 mr-2" /> Horarios de Operación
-        </CardTitle>
-        <CardDescription>Configura los horarios de atención de tu restaurante</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {restaurant.restaurant_hours?.length ? (
-          restaurant.restaurant_hours.map((hours: any) => (
-            <div
-              key={hours.id}
-              className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg space-y-3 md:space-y-0"
-            >
-              <div className="flex items-center space-x-4">
-                <span className="w-24 font-medium capitalize">{hours.day_of_week}</span>
-                <Switch
-                  checked={hours.is_open}
-                  onCheckedChange={(checked) => {
-                    const updated = restaurant.restaurant_hours.map((h: any) => {
-                      if (h.id === hours.id) {
-                        if (checked) {
-                          const previous = restaurant.restaurant_hours.find(
-                            (prev: any) => prev.is_open && prev.open_time && prev.close_time && prev.id !== h.id
-                          );
-                          return {
-                            ...h,
-                            is_open: true,
-                            open_time: previous ? previous.open_time : "09:00",
-                            close_time: previous ? previous.close_time : "18:00",
-                          };
-                        } else {
-                          return { ...h, is_open: false, open_time: "", close_time: "" };
-                        }
-                      }
-                      return h;
-                    });
-                    setRestaurant({ ...restaurant, restaurant_hours: updated });
-                  }}
-                />
-              </div>
-              {hours.is_open && (
-                <div className="flex items-center space-x-2 mt-2 md:mt-0">
+            <TabsContent value="general" className="space-y-6">
+              <div>
+                <Label>URL Personalizada (slug)</Label>
+                <div className="flex items-center space-x-2">
                   <Input
-                    type="time"
-                    value={hours.open_time || ""}
+                    placeholder="mi-restaurante-unico"
+                    value={restaurant.slug || ""}
                     onChange={(e) => {
-                      const updated = restaurant.restaurant_hours.map((h: any) =>
-                        h.id === hours.id ? { ...h, open_time: e.target.value } : h
-                      );
-                      setRestaurant({ ...restaurant, restaurant_hours: updated });
+                      const newSlug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+                      setRestaurant({ ...restaurant, slug: newSlug });
+                      checkSlugAvailability(newSlug);
                     }}
-                    className="w-32"
                   />
-                  <span>a</span>
-                  <Input
-                    type="time"
-                    value={hours.close_time || ""}
-                    onChange={(e) => {
-                      const updated = restaurant.restaurant_hours.map((h: any) =>
-                        h.id === hours.id ? { ...h, close_time: e.target.value } : h
-                      );
-                      setRestaurant({ ...restaurant, restaurant_hours: updated });
+                  {slugStatus === "checking" && <span className="text-sm text-gray-500">Verificando...</span>}
+                  {slugStatus === "available" && <CheckCircle className="text-green-500" size={20} />}
+                  {slugStatus === "taken" && <XCircle className="text-red-500" size={20} />}
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => {
+                      const url = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/${restaurant.slug}`;
+                      window.open(url, "_blank");
                     }}
-                    className="w-32"
-                  />
+                    disabled={!restaurant.slug}
+                  >
+                    Ver Menú
+                  </Button>
                 </div>
-              )}
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-gray-500">No se encontraron horarios configurados.</p>
-        )}
-      </CardContent>
-    </Card>
-  </TabsContent>
+                <p className="text-sm text-gray-500">Tus clientes podrán verla y ordenarte aquí.</p>
+              </div>
 
-  {/* TAB DELIVERY */}
-  <TabsContent value="delivery" className="space-y-4">
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <Label>Costo de Envío</Label>
-        <Input type="number" value={restaurant.delivery_fee || ""} onChange={(e) => setRestaurant({ ...restaurant, delivery_fee: Number(e.target.value) })} />
-      </div>
-      <div>
-        <Label>Pedido Mínimo</Label>
-        <Input type="number" value={restaurant.min_order_amount || ""} onChange={(e) => setRestaurant({ ...restaurant, min_order_amount: Number(e.target.value) })} />
-      </div>
-      <div>
-        <Label>Radio de Entrega (km)</Label>
-        <Input type="number" value={restaurant.delivery_radius || ""} onChange={(e) => setRestaurant({ ...restaurant, delivery_radius: Number(e.target.value) })} />
-      </div>
-    </div>
-  </TabsContent>
-</Tabs>
+              <div>
+                <Label>Nombre del Restaurante</Label>
+                <Input value={restaurant.name} onChange={(e) => setRestaurant({ ...restaurant, name: e.target.value })} />
+              </div>
+              <div>
+                <Label>Descripción</Label>
+                <Textarea value={restaurant.description || ""} onChange={(e) => setRestaurant({ ...restaurant, description: e.target.value })} />
+              </div>
+              <div>
+                <Label>Dirección</Label>
+                <Textarea value={restaurant.address || ""} onChange={(e) => setRestaurant({ ...restaurant, address: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Imagen de Portada</Label>
+                  {restaurant.cover_image_url && (
+                    <img src={restaurant.cover_image_url} className="w-full h-32 object-cover rounded" alt="Portada" />
+                  )}
+                  <Input type="file" accept="image/*" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadImage(file, "cover");
+                  }} />
+                </div>
+                <div>
+                  <Label>Logo / Imagen de Perfil</Label>
+                  {restaurant.logo_image_url && (
+                    <img src={restaurant.logo_image_url} className="w-24 h-24 object-cover rounded-full mx-auto" alt="Logo" />
+                  )}
+                  <Input type="file" accept="image/*" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadImage(file, "profile");
+                  }} />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="contact" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Teléfono</Label>
+                  <Input value={restaurant.phone} onChange={(e) => setRestaurant({ ...restaurant, phone: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Email</Label>
+                  <Input type="email" value={restaurant.email} onChange={(e) => setRestaurant({ ...restaurant, email: e.target.value })} />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="hours" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Clock className="h-5 w-5 mr-2" /> Horarios de Operación
+                  </CardTitle>
+                  <CardDescription>Configura los horarios de atención de tu restaurante</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {restaurant.restaurant_hours?.length ? (
+                    restaurant.restaurant_hours.map((hours: any) => (
+                      <div
+                        key={hours.id}
+                        className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg space-y-3 md:space-y-0"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <span className="w-24 font-medium">{dayTranslations[hours.day_of_week] ?? hours.day_of_week}</span>
+                          <Switch
+                            checked={hours.is_open}
+                            onCheckedChange={(checked) => {
+                              const updated = restaurant.restaurant_hours.map((h: any) => {
+                                if (h.id === hours.id) {
+                                  if (checked) {
+                                    const previous = restaurant.restaurant_hours.find(
+                                      (prev: any) =>
+                                        prev.is_open && prev.open_time && prev.close_time && prev.id !== h.id
+                                    );
+                                    return {
+                                      ...h,
+                                      is_open: true,
+                                      open_time: previous ? previous.open_time : "09:00",
+                                      close_time: previous ? previous.close_time : "18:00",
+                                    };
+                                  } else {
+                                    return { ...h, is_open: false, open_time: "", close_time: "" };
+                                  }
+                                }
+                                return h;
+                              });
+                              setRestaurant({ ...restaurant, restaurant_hours: updated });
+                            }}
+                          />
+                        </div>
+                        {hours.is_open && (
+                          <div className="flex items-center space-x-2 mt-2 md:mt-0">
+                            <Input
+                              type="time"
+                              value={hours.open_time || ""}
+                              onChange={(e) => {
+                                const updated = restaurant.restaurant_hours.map((h: any) =>
+                                  h.id === hours.id ? { ...h, open_time: e.target.value } : h
+                                );
+                                setRestaurant({ ...restaurant, restaurant_hours: updated });
+                              }}
+                              className="w-32"
+                            />
+                            <span>a</span>
+                            <Input
+                              type="time"
+                              value={hours.close_time || ""}
+                              onChange={(e) => {
+                                const updated = restaurant.restaurant_hours.map((h: any) =>
+                                  h.id === hours.id ? { ...h, close_time: e.target.value } : h
+                                );
+                                setRestaurant({ ...restaurant, restaurant_hours: updated });
+                              }}
+                              className="w-32"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">No se encontraron horarios configurados.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="delivery" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Costo de Envío</Label>
+                  <Input type="number" value={restaurant.delivery_fee || ""} onChange={(e) => setRestaurant({ ...restaurant, delivery_fee: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <Label>Pedido Mínimo</Label>
+                  <Input type="number" value={restaurant.min_order_amount || ""} onChange={(e) => setRestaurant({ ...restaurant, min_order_amount: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <Label>Radio de Entrega (km)</Label>
+                  <Input type="number" value={restaurant.delivery_radius || ""} onChange={(e) => setRestaurant({ ...restaurant, delivery_radius: Number(e.target.value) })} />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <Separator className="my-6" />
 
