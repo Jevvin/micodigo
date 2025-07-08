@@ -36,3 +36,37 @@ export async function uploadImageToStorage(restaurantId: string, type: "cover" |
 
   return { success: true, url: data.publicUrl };
 }
+
+/**
+ * Sube una imagen de producto a Supabase Storage
+ * @param restaurantId ID del restaurante
+ * @param file File a subir
+ * @returns { success, url, error }
+ */
+export async function uploadProductImageToStorage(restaurantId: string, file: File) {
+  const filePath = `${restaurantId}/products/${file.name}`;
+
+  const { error } = await supabase
+    .storage
+    .from('restaurants')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: true,
+    });
+
+  if (error) {
+    console.error('Error al subir imagen de producto:', error.message);
+    return { success: false, error: error.message };
+  }
+
+  const { data } = supabase
+    .storage
+    .from('restaurants')
+    .getPublicUrl(filePath);
+
+  if (!data || !data.publicUrl) {
+    return { success: false, error: "No se pudo obtener URL pública" };
+  }
+
+  return { success: true, url: data.publicUrl };
+}

@@ -1,15 +1,16 @@
 /* 📦 PARTE 1 de 3 - Imports y Estado inicial */
 
 "use client"
-
+import { uploadProductImageToStorage } from "@/app/utils/storageUpload";
 import { useEffect, useState } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Loader2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -18,6 +19,17 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { Plus, Edit, Trash2, GripVertical, ImageIcon, Eye, EyeOff } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog"
 
 // Opcional si usas tipos de Supabase
 // import { Database } from "@/types/supabase" 
@@ -27,14 +39,16 @@ const supabase = createClientComponentClient<Supabase>()
 
 interface Product {
   id: string
+  categoryId: string
+  restaurantId?: string
   name: string
   description: string
   price: number
-  image?: string
-  isAvailable: boolean
   stock: number
-  extras: string[]
+  isAvailable: boolean
+  image?: string
 }
+
 
 interface Category {
   id: string
@@ -100,15 +114,16 @@ export function MenuCustomizer() {
           isActive: cat.is_active,
           sortOrder: cat.sort_order,
           products: (products ?? []).map((p) => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            price: p.price,
-            stock: p.stock,
-            isAvailable: p.is_available,
-            extras: p.extras ?? [],
-            image: p.image,
-          })),
+  id: p.id,
+  categoryId: p.category_id,
+  name: p.name,
+  description: p.description,
+  price: p.price,
+  stock: p.stock,
+  isAvailable: p.is_available,
+  image: p.image,
+})),
+
         })
       }
       setCategories(categoriesWithProducts)
@@ -136,7 +151,7 @@ export function MenuCustomizer() {
   // 📌 Crear o actualizar categoría
   const handleSaveCategory = async (category: Category) => {
     if (!restaurantId) return
-    if (category.id.startsWith("cat-")) {
+    if (typeof category.id === "string" && category.id.startsWith("cat-")) {
       const { data } = await supabase
         .from("menu_categories")
         .insert({
@@ -182,21 +197,27 @@ export function MenuCustomizer() {
     const cat = categories.find((c) => c.id === categoryId)
     if (!cat) return
 
-    if (product.id.startsWith("prod-")) {
-      const { data } = await supabase
-        .from("menu_products")
-        .insert({
-          name: product.name,
-          description: product.description,
-          price: product.price,
-          stock: product.stock,
-          is_available: product.isAvailable,
-          extras: product.extras,
-          category_id: categoryId,
-          sort_order: cat.products.length,
-        })
-        .select()
-        .single()
+    if (String(product.id).startsWith("prod-")) {
+  if (!restaurantId) {
+    console.error("No hay restaurantId disponible para el producto");
+    return;
+  }
+  const { data } = await supabase
+    .from("menu_products")
+    .insert({
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      stock: product.stock,
+      is_available: product.isAvailable,
+      image: product.image,
+      category_id: Number(categoryId),
+      restaurant_id: Number(restaurantId),
+      sort_order: cat.products.length,
+    })
+    .select()
+    .single()
+
       if (data) {
         const newProduct: Product = { ...product, id: data.id }
         const newCats = categories.map((c) =>
@@ -210,13 +231,13 @@ export function MenuCustomizer() {
       await supabase
         .from("menu_products")
         .update({
-          name: product.name,
-          description: product.description,
-          price: product.price,
-          stock: product.stock,
-          is_available: product.isAvailable,
-          extras: product.extras,
-        })
+  name: product.name,
+  description: product.description,
+  price: product.price,
+  stock: product.stock,
+  is_available: product.isAvailable,
+  image: product.image,
+})
         .eq("id", product.id)
       setCategories(categories.map((c) =>
         c.id === categoryId
@@ -384,10 +405,31 @@ function SortableCategory({
                   Agregar Producto
                 </Button>
               </div>
-              <Button variant="destructive" size="sm" onClick={() => onDeleteCategory(category.id)}>
-                <Trash2 className="h-4 w-4 mr-1" />
-                Eliminar Categoría
-              </Button>
+              <AlertDialog>
+  <AlertDialogTrigger asChild>
+    <Button variant="destructive" size="sm">
+      <Trash2 className="h-4 w-4 mr-1" />
+      Eliminar categoría
+    </Button>
+  </AlertDialogTrigger>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>¿Deseas eliminar esta categoría?</AlertDialogTitle>
+      <AlertDialogDescription>
+        Recuerda que todos los productos dentro de ella también se eliminarán.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+      <AlertDialogAction
+  className={buttonVariants({ variant: "destructive" })}
+  onClick={() => onDeleteCategory(category.id)}
+>
+  Sí, eliminar
+</AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
             </div>
 
             <DndContext
@@ -451,18 +493,21 @@ function SortableCategory({
             <DialogTitle>{editingProduct ? "Editar Producto" : "Agregar Producto"}</DialogTitle>
             <DialogDescription>{editingProduct ? "Modifica los detalles del producto" : "Agrega un nuevo producto a la categoría"}</DialogDescription>
           </DialogHeader>
+
           <ProductForm
-            product={editingProduct}
-            onSave={(product) => {
-              onUpdateProduct(category.id, product)
-              setIsAddingProduct(false)
-              setEditingProduct(null)
-            }}
-            onCancel={() => {
-              setIsAddingProduct(false)
-              setEditingProduct(null)
-            }}
-          />
+  categoryId={category.id}
+  product={editingProduct}
+  onSave={(product) => {
+    onUpdateProduct(category.id, product)
+    setIsAddingProduct(false)
+    setEditingProduct(null)
+  }}
+  onCancel={() => {
+    setIsAddingProduct(false)
+    setEditingProduct(null)
+  }}
+/>
+
         </DialogContent>
       </Dialog>
     </div>
@@ -514,9 +559,30 @@ function SortableProduct({
         <Button variant="ghost" size="sm" onClick={onEdit}>
           <Edit className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onDelete}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <AlertDialog>
+  <AlertDialogTrigger asChild>
+    <Button variant="ghost" size="sm">
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  </AlertDialogTrigger>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>¿Deseas eliminar este producto?</AlertDialogTitle>
+      <AlertDialogDescription>
+        Recuerda que esta acción no se puede deshacer.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+      <AlertDialogAction
+  className={buttonVariants({ variant: "destructive" })}
+  onClick={onDelete}
+>
+  Sí, eliminar
+</AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
       </div>
     </div>
   )
@@ -606,35 +672,80 @@ function CategoryForm({
 
 // 📌 FORMULARIO PARA CREAR O EDITAR UN PRODUCTO
 function ProductForm({
+  categoryId,
   product,
   onSave,
   onCancel,
 }: {
+  categoryId: string
   product?: Product | null
   onSave: (product: Product) => void
   onCancel: () => void
 }) {
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: product?.name || "",
     description: product?.description || "",
     price: product?.price || 0,
     stock: product?.stock || 0,
     isAvailable: product?.isAvailable ?? true,
-    extras: product?.extras?.join(", ") || "",
-  })
+    image: product?.image || "",
+  });
+  const [uploading, setUploading] = useState(false);
+
+  // 🔥 Obtener el restaurantId al montar
+  useEffect(() => {
+    const fetchRestaurantId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      setRestaurantId(data?.id ?? null);
+    };
+    fetchRestaurantId();
+  }, []);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!restaurantId) {
+      alert("Error: No se encontró el ID del restaurante.");
+      return;
+    }
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+
+    const result = await uploadProductImageToStorage(restaurantId, file);
+
+    if (result.success && result.url) {
+      setFormData({ ...formData, image: result.url });
+    } else {
+      alert(`Error al subir imagen: ${result.error}`);
+    }
+
+    setUploading(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
+
     const newProduct: Product = {
       id: product?.id || `prod-${Date.now()}`,
-      ...formData,
-      extras: formData.extras
-        .split(",")
-        .map((e) => e.trim())
-        .filter((e) => e),
-    }
-    onSave(newProduct)
-  }
+      categoryId,
+      name: formData.name,
+      description: formData.description,
+      price: formData.price,
+      stock: formData.stock,
+      isAvailable: formData.isAvailable,
+      image: formData.image || "",
+    };
+
+    onSave(newProduct);
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -659,6 +770,7 @@ function ProductForm({
           />
         </div>
       </div>
+
       <div>
         <Label htmlFor="description">Descripción</Label>
         <Textarea
@@ -667,6 +779,7 @@ function ProductForm({
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
         />
       </div>
+
       <div>
         <Label htmlFor="stock">Stock inicial</Label>
         <Input
@@ -677,15 +790,25 @@ function ProductForm({
           required
         />
       </div>
+
       <div>
-        <Label htmlFor="extras">Extras disponibles (separados por comas)</Label>
+        <Label>Imagen del producto</Label>
+        {formData.image && (
+          <img src={formData.image} alt="Imagen del producto" className="w-32 h-32 object-cover rounded mb-2" />
+        )}
         <Input
-          id="extras"
-          value={formData.extras}
-          onChange={(e) => setFormData({ ...formData, extras: e.target.value })}
-          placeholder="Queso extra, Aguacate, Salsa picante"
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          disabled={uploading || !restaurantId}
         />
+        {uploading && (
+          <div className="flex items-center mt-2 text-sm text-gray-500">
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Subiendo imagen...
+          </div>
+        )}
       </div>
+
       <div className="flex items-center space-x-2">
         <input
           type="checkbox"
@@ -695,12 +818,17 @@ function ProductForm({
         />
         <Label htmlFor="isAvailable">Producto disponible</Label>
       </div>
+
       <div className="flex justify-end space-x-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit">Guardar</Button>
+        <Button type="submit" disabled={!restaurantId}>
+          Guardar
+        </Button>
       </div>
     </form>
-  )
+  );
 }
+
+export default ProductForm;

@@ -48,7 +48,7 @@ export default async function DashboardLayout({
           <DashboardHeader restaurantName={restaurantName} />
 
           {/* Área dinámica de contenido */}
-          <main className="flex-1 min-w-0 overflow-auto">
+          <main className="flex-1 min-w-0 overflow-auto p-6 bg-gray-50">
             {children}
           </main>
         </div>

@@ -103,7 +103,7 @@ export default function CuentaPage() {
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8">
+    <main>
       <Card>
         <CardHeader>
           <CardTitle>Configuración de la Cuenta</CardTitle>
