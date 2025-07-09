@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MenuCustomizer } from "@/components/dashboard/menu-customizer";
+import MenuCustomizer from "@/components/dashboard/menu/MenuCustomizer";
+import ExtrasCustomizer from "@/components/dashboard/extras/ExtrasCustomizer";
+import { Separator } from "@/components/ui/separator";
 
 export default function MenuPage() {
   const [mounted, setMounted] = useState(false);
@@ -13,6 +15,12 @@ export default function MenuPage() {
   if (!mounted) return null;
 
   return (
-  <MenuCustomizer />
-);
+    <>
+      <MenuCustomizer />
+
+      <Separator className="my-6" />
+
+      <ExtrasCustomizer />
+    </>
+  );
 }

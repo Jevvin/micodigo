@@ -4,12 +4,16 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/app/utils/supabaseClient";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Loader2 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Loader2, User, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CuentaPage() {
+  // 🟣 ESTADO Y HOOKS ===============================================
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,9 +23,11 @@ export default function CuentaPage() {
     phone: "",
   });
   const [password, setPassword] = useState("");
-
+  
   const router = useRouter();
+  const { toast } = useToast();  // ✅ Para mostrar notificaciones
 
+  // 🟣 CARGAR DATOS DE USUARIO ======================================
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
@@ -45,6 +51,7 @@ export default function CuentaPage() {
     fetchUserData();
   }, []);
 
+  // 🟣 GUARDAR CAMBIOS ==============================================
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -54,7 +61,7 @@ export default function CuentaPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuario no autenticado.");
 
-      // ✅ Actualiza email si cambió
+      // ✅ Actualizar email
       if (userData.email !== user.email) {
         const { error: emailError } = await supabase.auth.updateUser({
           email: userData.email
@@ -62,7 +69,7 @@ export default function CuentaPage() {
         if (emailError) throw emailError;
       }
 
-      // ✅ Actualiza password si se llenó
+      // ✅ Actualizar password
       if (password) {
         const { error: passwordError } = await supabase.auth.updateUser({
           password
@@ -70,7 +77,7 @@ export default function CuentaPage() {
         if (passwordError) throw passwordError;
       }
 
-      // ✅ Actualiza user_metadata (nombre y teléfono)
+      // ✅ Actualizar metadata
       const { error: metadataError } = await supabase.auth.updateUser({
         data: {
           full_name: userData.name,
@@ -79,9 +86,13 @@ export default function CuentaPage() {
       });
       if (metadataError) throw metadataError;
 
-      alert("✅ Datos actualizados correctamente.");
-      router.refresh();
+      // ✅ Mostrar TOAST de éxito
+      toast({
+        title: "Cambios guardados",
+        description: "La configuración se actualizó correctamente.",
+      });
 
+      router.refresh();
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -93,75 +104,113 @@ export default function CuentaPage() {
     }
   };
 
+  // 🟣 ESTADO DE CARGA ==============================================
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex items-center justify-center h-64">
         <Loader2 className="animate-spin h-6 w-6" />
-        <span className="ml-2">Cargando...</span>
+        <span className="ml-2">Cargando configuración...</span>
       </div>
     );
   }
 
+  // 🟣 RETURN PRINCIPAL ==============================================
   return (
-    <main>
-      <Card>
-        <CardHeader>
-          <CardTitle>Configuración de la Cuenta</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Modifica los datos de tu cuenta de administrador.
-          </p>
-        </CardHeader>
-        <Separator />
-        <CardContent>
-          {error && <p className="text-red-500 mb-4">{error}</p>}
+    <div className="space-y-6">
+      {/* 🟢 ENCABEZADO DE LA PÁGINA */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center">
+            Configuración de la Cuenta
+          </h2>
+          <p className="text-gray-600">Administra los datos de tu cuenta de administrador</p>
+        </div>
+      </div>
 
-          <form onSubmit={handleSave} className="space-y-4">
-            <div>
-              <label className="block mb-1 text-sm font-medium">Nombre del Administrador</label>
-              <Input
-                type="text"
-                value={userData.name}
-                onChange={(e) => setUserData({ ...userData, name: e.target.value })}
-                required
-              />
-            </div>
+      {/* 🟢 TABS DE SECCIONES (para escalar en el futuro) */}
+      <Tabs defaultValue="general" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-1">
+          <TabsTrigger value="general">Datos de la Cuenta</TabsTrigger>
+        </TabsList>
 
-            <div>
-              <label className="block mb-1 text-sm font-medium">Teléfono de Contacto</label>
-              <Input
-                type="tel"
-                value={userData.phone}
-                onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
-                required
-              />
-            </div>
+        {/* TAB GENERAL */}
+        <TabsContent value="general" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <User className="h-5 w-5 mr-2" /> Información General
+              </CardTitle>
+              <CardDescription>Datos básicos de tu cuenta de administrador</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
 
-            <div>
-              <label className="block mb-1 text-sm font-medium">Correo Electrónico</label>
-              <Input
-                type="email"
-                value={userData.email}
-                onChange={(e) => setUserData({ ...userData, email: e.target.value })}
-                required
-              />
-            </div>
+              <form onSubmit={handleSave} className="space-y-4">
+                {/* Nombre */}
+                <div>
+                  <Label>Nombre del Administrador</Label>
+                  <Input
+                    type="text"
+                    value={userData.name}
+                    onChange={(e) => setUserData({ ...userData, name: e.target.value })}
+                    required
+                  />
+                </div>
 
-            <div>
-              <label className="block mb-1 text-sm font-medium">Nueva Contraseña</label>
-              <Input
-                type="password"
-                placeholder="Dejar en blanco para no cambiar"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+                {/* Teléfono */}
+                <div>
+                  <Label>Teléfono de Contacto</Label>
+                  <Input
+                    type="tel"
+                    value={userData.phone}
+                    onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
+                    required
+                  />
+                </div>
 
-            <Button type="submit" disabled={saving} className="w-full">
-              {saving ? "Guardando cambios..." : "Guardar cambios"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </main>
+                {/* Email */}
+                <div>
+                  <Label>Correo Electrónico</Label>
+                  <Input
+                    type="email"
+                    value={userData.email}
+                    onChange={(e) => setUserData({ ...userData, email: e.target.value })}
+                    required
+                  />
+                </div>
+
+                {/* Contraseña */}
+                <div>
+                  <Label>Nueva Contraseña</Label>
+                  <Input
+                    type="password"
+                    placeholder="Dejar en blanco para no cambiar"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+
+                {/* Botón */}
+                <Button type="submit" disabled={saving} className="w-full">
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Guardando cambios...
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-4 w-4 mr-2" /> Guardar Cambios
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
