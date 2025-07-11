@@ -19,9 +19,21 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function NegocioPage() {
   // 🟣 STATE & HOOKS ================================================
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [restaurant, setRestaurant] = useState<any>(null);
+  const [restaurant, setRestaurant] = useState<any>({
+  slug: "",
+  name: "",
+  description: "",
+  address: "",
+  phone: "",
+  email: "",
+  cover_image_url: "",
+  logo_image_url: "",
+  delivery_fee: 0,
+  min_order_amount: 0,
+  delivery_radius: 0,
+  restaurant_hours: [],
+});
   const [error, setError] = useState<string | null>(null);
   const [slugStatus, setSlugStatus] = useState<null | "available" | "taken" | "checking">(null);
   const router = useRouter();
@@ -39,42 +51,39 @@ export default function NegocioPage() {
 
   // 🟣 FETCH DATA ON LOAD ============================================
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error || !user) {
-        setError("Usuario no autenticado.");
-        setLoading(false);
-        router.push("/restaurant");
-        return;
+  const fetchData = async () => {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      setError("Usuario no autenticado.");
+      router.push("/restaurant");
+      return;
+    }
+
+    const { data, error: fetchError } = await supabase
+      .from("restaurants")
+      .select("*, restaurant_hours(*)")
+      .eq("user_id", user.id)
+      .single();
+
+    if (fetchError || !data) {
+      setError("No se encontró el restaurante.");
+    } else {
+      let hours = data.restaurant_hours;
+      if (!hours || hours.length === 0) {
+        hours = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map((day) => ({
+          id: `new-${day}`,
+          day_of_week: day,
+          is_open: false,
+          open_time: "",
+          close_time: "",
+        }));
       }
+      setRestaurant({ ...data, restaurant_hours: hours });
+    }
+  };
 
-      const { data, error: fetchError } = await supabase
-        .from("restaurants")
-        .select("*, restaurant_hours(*)")
-        .eq("user_id", user.id)
-        .single();
-
-      if (fetchError || !data) {
-        setError("No se encontró el restaurante.");
-      } else {
-        let hours = data.restaurant_hours;
-        if (!hours || hours.length === 0) {
-          hours = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map((day) => ({
-            id: `new-${day}`,
-            day_of_week: day,
-            is_open: false,
-            open_time: "",
-            close_time: "",
-          }));
-        }
-        setRestaurant({ ...data, restaurant_hours: hours });
-      }
-      setLoading(false);
-    };
-
-    fetchData();
-  }, [router]);
+  fetchData();
+}, [router]);
 
   // 🟣 HANDLE IMAGE UPLOAD ===========================================
   const handleUploadImage = async (file: File, type: "cover" | "profile") => {
@@ -154,14 +163,6 @@ export default function NegocioPage() {
   };
 
   // 🟣 LOADING STATE =================================================
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Cargando configuración...</span>
-      </div>
-    );
-  }
 
   // 🟣 ERROR STATE ===================================================
   if (error) {
@@ -176,9 +177,6 @@ export default function NegocioPage() {
   }
 
   // 🟣 MAIN RETURN ===================================================
-  if (!restaurant) {
-    return <p className="text-center py-8">No se encontró el restaurante.</p>;
-  }
 
   return (
     <div className="space-y-6">

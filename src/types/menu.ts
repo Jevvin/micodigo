@@ -19,8 +19,8 @@ export type Product = {
   restaurantId?: string;
   name: string;
   description: string;
-  price: number;
-  stock: number;
+  price: number;           // ✅ Precio público para venta
+  stock: number;           // ✅ Stock actual
   isAvailable: boolean;
   image?: string;
   assignedExtraGroups: {

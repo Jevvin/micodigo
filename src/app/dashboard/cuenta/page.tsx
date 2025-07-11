@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, User, Lock } from "lucide-react";
+import { User, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,7 +14,6 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function CuentaPage() {
   // 🟣 ESTADO Y HOOKS ===============================================
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userData, setUserData] = useState({
@@ -23,19 +22,17 @@ export default function CuentaPage() {
     phone: "",
   });
   const [password, setPassword] = useState("");
-  
+
   const router = useRouter();
   const { toast } = useToast();  // ✅ Para mostrar notificaciones
 
   // 🟣 CARGAR DATOS DE USUARIO ======================================
   useEffect(() => {
     const fetchUserData = async () => {
-      setLoading(true);
       const { data: { user }, error } = await supabase.auth.getUser();
 
       if (error || !user) {
         setError("No se pudo obtener el usuario.");
-        setLoading(false);
         return;
       }
 
@@ -44,8 +41,6 @@ export default function CuentaPage() {
         phone: user.user_metadata?.phone ?? "",
         email: user.email ?? "",
       });
-
-      setLoading(false);
     };
 
     fetchUserData();
@@ -103,16 +98,6 @@ export default function CuentaPage() {
       setSaving(false);
     }
   };
-
-  // 🟣 ESTADO DE CARGA ==============================================
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="animate-spin h-6 w-6" />
-        <span className="ml-2">Cargando configuración...</span>
-      </div>
-    );
-  }
 
   // 🟣 RETURN PRINCIPAL ==============================================
   return (
@@ -198,7 +183,7 @@ export default function CuentaPage() {
                 <Button type="submit" disabled={saving} className="w-full">
                   {saving ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Guardando cambios...
+                      <Lock className="h-4 w-4 mr-2 animate-spin" /> Guardando cambios...
                     </>
                   ) : (
                     <>
