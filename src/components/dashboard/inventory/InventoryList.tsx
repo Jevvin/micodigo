@@ -89,25 +89,24 @@ export default function InventoryList({
                   )}
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-right space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-semibold">
-                      {item.quantity} {item.unit}
-                    </span>
-                    <Badge className={getStatusColor(item.status)}>
-                      {getStatusText(item.status)}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Min: {item.minimum_quantity} • Max: {item.maximum_quantity}
-                  </p>
-                  {(item.status === "critical" || item.status === "low") && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      📢 Genera notificaciones automáticas
-                    </p>
-                  )}
+              
+              <div className="flex flex-col items-end justify-between h-full space-y-2">
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold">
+                    {item.quantity} {item.unit}
+                  </span>
+                  <Badge className={`${getStatusColor(item.status)} min-w-[6rem] text-center justify-center`}>
+                    {getStatusText(item.status)}
+                  </Badge>
                 </div>
+                <p className="text-sm text-gray-500">
+                  Min: {item.minimum_quantity} • Max: {item.maximum_quantity}
+                </p>
+                {(item.status === "critical" || item.status === "low") && (
+                  <p className="text-xs text-blue-600">
+                    📢 Genera notificaciones automáticas
+                  </p>
+                )}
                 <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
                   <Edit className="h-4 w-4" />
                 </Button>

@@ -28,7 +28,7 @@ import { HeaderBase } from "./header-base"
 
 const menuItems = [
   { id: "inicio", title: "Inicio", icon: LayoutDashboard, description: "Vista rápida del negocio" },
-  { id: "pedidos", title: "Pedidos en Vivo", icon: AlertCircle, description: "Pantalla de cocina", badge: "PDV" },
+  { id: "pdv", title: "Pedidos en Vivo", icon: AlertCircle, description: "Pantalla de cocina", badge: "PDV" },
   { id: "ventas", title: "Ventas", icon: TrendingUp, description: "Historial y estadísticas" },
   { id: "clientes", title: "Clientes", icon: Users, description: "Base de datos de clientes" },
   { id: "inventario", title: "Inventario", icon: Package, description: "Stock de productos" },
