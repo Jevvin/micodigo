@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -24,47 +24,91 @@ export default function ProductDetailsModal({
   const [notes, setNotes] = useState("");
   const [selectedExtras, setSelectedExtras] = useState<CartItemExtra[]>([]);
 
+  // ✅ Limpiar selección al abrir modal nuevo
+  useEffect(() => {
+    if (open && product) {
+      setSelectedExtras([]);
+      setQuantity(1);
+      setNotes("");
+    }
+  }, [open, product]);
+
   if (!open || !product) return null;
 
-  const handleToggleExtra = (groupId: number, extra: any, ruleType: string) => {
-    setSelectedExtras((prev) => {
-      const exists = prev.find((e) => e.id === extra.id);
+  // ✅ Variables seguras para evitar crashes
+  const productId = product?.id ?? "";
+  const productName = product?.name ?? "Producto";
+  const productPrice = product?.price ?? 0;
+  const productImage = product?.image ?? "/placeholder.svg";
+  const productDescription = product?.description ?? "";
 
+  const handleToggleExtra = (groupId: number, extra: any, ruleType: string) => {
+    const group = extraGroups.find((g) => g.id === groupId);
+    if (!group) return;
+
+    const formattedExtra: CartItemExtra = {
+      id: extra.id,
+      name: extra.name,
+      price: extra.price,
+      quantity: 1,
+      groupId,
+      extra_group_name: group.name,
+      extra_group_sort_order: group.sort_order,
+      extra_sort_order: extra.sort_order
+    };
+
+    setSelectedExtras((prev) => {
+      let updated;
       if (ruleType === "single") {
         const filtered = prev.filter((e) => e.groupId !== groupId);
-        return exists ? filtered : [...filtered, { ...extra, quantity: 1, groupId }];
-      }
-
-      if (ruleType === "multiple") {
-        return exists
+        updated = prev.find((e) => e.id === extra.id) ? filtered : [...filtered, formattedExtra];
+      } else if (ruleType === "multiple") {
+        updated = prev.find((e) => e.id === extra.id)
           ? prev.filter((e) => e.id !== extra.id)
-          : [...prev, { ...extra, quantity: 1, groupId }];
+          : [...prev, formattedExtra];
+      } else {
+        updated = prev;
       }
 
-      return prev;
+      // ✅ Ordenar extras en tiempo real
+      return updated.slice().sort((a, b) => {
+        if (a.extra_group_sort_order !== b.extra_group_sort_order) {
+          return a.extra_group_sort_order - b.extra_group_sort_order;
+        }
+        return a.extra_sort_order - b.extra_sort_order;
+      });
     });
   };
 
-  // ✅ Calcula TOTAL DE EXTRAS para UNA unidad
+  // ✅ Total de extras por 1 unidad
   const extrasTotalSingle = selectedExtras.reduce(
     (sum, e) => sum + (e.price * (e.quantity || 1)),
     0
   );
 
-  // ✅ Multiplica por la cantidad de productos seleccionados
-  const totalPrice = ((product.price + extrasTotalSingle) * quantity);
+  // ✅ Total considerando cantidad
+  const totalPrice = ((productPrice + extrasTotalSingle) * quantity);
 
   const handleAddToCart = () => {
+    // ✅ Forzar orden antes de mandar al carrito
+    const sortedExtras = selectedExtras.slice().sort((a, b) => {
+      if (a.extra_group_sort_order !== b.extra_group_sort_order) {
+        return a.extra_group_sort_order - b.extra_group_sort_order;
+      }
+      return a.extra_sort_order - b.extra_sort_order;
+    });
+
     const item = {
-      productId: product.id,
-      name: product.name,
-      price: product.price,
+      productId,
+      name: productName,
+      price: productPrice,
       quantity,
       notes,
-      extras: selectedExtras,
+      extras: sortedExtras,
       extrasTotal: extrasTotalSingle,
-      image: product.image
+      image: productImage
     };
+
     onAddToCart(item);
     onClose();
   };
@@ -73,7 +117,7 @@ export default function ProductDetailsModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex items-center justify-between">
-          <CardTitle>{product.name}</CardTitle>
+          <CardTitle>{productName}</CardTitle>
           <Button
             variant="ghost"
             size="icon"
@@ -86,55 +130,61 @@ export default function ProductDetailsModal({
 
         <CardContent className="space-y-4">
           <img
-            src={product.image || "/placeholder.svg"}
-            alt={product.name}
+            src={productImage}
+            alt={productName}
             className="w-full h-64 object-cover rounded-lg"
           />
 
-          <p className="text-gray-700">{product.description}</p>
+          <p className="text-gray-700">{productDescription}</p>
 
           <div className="space-y-2">
-            <p className="font-medium">Precio base: ${product.price}</p>
+            <p className="font-medium">Precio base: ${productPrice}</p>
 
-            {/* Extras en acordeón */}
+            {/* Extras */}
             {extraGroups && extraGroups.length > 0 && (
               <div>
                 <p className="text-sm font-medium mb-1">Extras:</p>
                 <Accordion type="multiple" className="w-full">
-                  {extraGroups.map((group: any) => (
-                    <AccordionItem key={group.id} value={group.id.toString()}>
-                      <AccordionTrigger>
-                        <div className="flex flex-col text-left">
-                          <span className="font-medium">{group.name}</span>
-                          <span className="text-xs text-gray-500">{group.description}</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          {group.extras && group.extras.length > 0 ? (
-                            group.extras.map((extra: any) => {
-                              const selected = selectedExtras.find((e) => e.id === extra.id);
-                              return (
-                                <Button
-                                  key={extra.id}
-                                  variant={selected ? "default" : "outline"}
-                                  className="text-sm"
-                                  onClick={() => handleToggleExtra(group.id, extra, group.ruleType)}
-                                >
-                                  {extra.name} +${extra.price}
-                                </Button>
-                              );
-                            })
-                          ) : (
-                            <p className="text-xs text-gray-400">No hay extras disponibles en este grupo.</p>
+                  {extraGroups
+                    .slice()
+                    .sort((a, b) => a.sort_order - b.sort_order)
+                    .map((group: any) => (
+                      <AccordionItem key={group.id} value={group.id.toString()}>
+                        <AccordionTrigger>
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium">{group.name}</span>
+                            <span className="text-xs text-gray-500">{group.description}</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            {group.extras && group.extras.length > 0 ? (
+                              group.extras
+                                .slice()
+                                .sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order)
+                                .map((extra: any) => {
+                                  const selected = selectedExtras.find((e) => e.id === extra.id);
+                                  return (
+                                    <Button
+                                      key={extra.id}
+                                      variant={selected ? "default" : "outline"}
+                                      className="text-sm"
+                                      onClick={() => handleToggleExtra(group.id, extra, group.ruleType)}
+                                    >
+                                      {extra.name} +${extra.price}
+                                    </Button>
+                                  );
+                                })
+                            ) : (
+                              <p className="text-xs text-gray-400">No hay extras disponibles en este grupo.</p>
+                            )}
+                          </div>
+                          {group.isRequired && (
+                            <p className="text-xs text-red-500">* Obligatorio</p>
                           )}
-                        </div>
-                        {group.isRequired && (
-                          <p className="text-xs text-red-500">* Obligatorio</p>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
                 </Accordion>
               </div>
             )}
@@ -151,7 +201,7 @@ export default function ProductDetailsModal({
               />
             </div>
 
-            {/* Selector de cantidad + botón de añadir */}
+            {/* Cantidad + botón */}
             <div className="flex items-center space-x-2 mt-4">
               <label className="text-sm">Cantidad:</label>
               <input

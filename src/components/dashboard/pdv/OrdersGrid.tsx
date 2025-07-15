@@ -33,13 +33,13 @@ export default function OrdersGrid({
   const toggleLayout = () => setIsColumnLayout(!isColumnLayout)
 
   return (
-    <div className="space-y-8">
-      {/* Toggle button */}
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={toggleLayout}>
-          Cambiar a vista {isColumnLayout ? "de filas" : "de columnas"}
-        </Button>
-      </div>
+  <div className="space-y-8">
+    {/* Toggle button */}
+    <div className="hidden md:flex justify-end">
+      <Button variant="outline" size="sm" onClick={toggleLayout}>
+        Cambiar a vista {isColumnLayout ? "de filas" : "de columnas"}
+      </Button>
+    </div>
 
       {/* ✅ Section for NUEVOS + PREPARACIÓN + LISTOS */}
       {isColumnLayout ? (
@@ -102,62 +102,64 @@ export default function OrdersGrid({
         </div>
       ) : (
         // 🌟 FILAS (vertical)
-        <div className="space-y-8">
-          {/* New Orders */}
-          <div>
-            <h3 className="text-lg font-semibold text-red-600 mb-2">
-              Pedidos Nuevos ({newOrders.length})
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {newOrders.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onClick={() => onOrderClick(order)}
-                  onReject={() => onRejectOrder(order)}
-                  onChangeStatus={onChangeStatus}
-                  onMarkDeliveryAsDelivered={onMarkDeliveryAsDelivered}
-                />
-              ))}
-            </div>
-          </div>
+<div className="space-y-8">
+  {/* New Orders */}
+  <div>
+    <h3 className="text-lg font-semibold text-red-600 mb-2">
+      Pedidos Nuevos ({newOrders.length})
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {newOrders.map((order) => (
+        <OrderCard
+          key={order.id}
+          order={order}
+          onClick={() => onOrderClick(order)}
+          onReject={() => onRejectOrder(order)}
+          onChangeStatus={onChangeStatus}
+          onMarkDeliveryAsDelivered={onMarkDeliveryAsDelivered}
+        />
+      ))}
+    </div>
+  </div>
 
-          {/* Preparing Orders */}
-          <div>
-            <h3 className="text-lg font-semibold text-yellow-600 mb-2">
-              En Preparación ({preparingOrders.length})
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {preparingOrders.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onClick={() => onOrderClick(order)}
-                  onChangeStatus={onChangeStatus}
-                  onMarkDeliveryAsDelivered={onMarkDeliveryAsDelivered}
-                />
-              ))}
-            </div>
-          </div>
+  {/* Preparing Orders */}
+  <div>
+    <h3 className="text-lg font-semibold text-yellow-600 mb-2">
+      En Preparación ({preparingOrders.length})
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {preparingOrders.map((order) => (
+        <OrderCard
+          key={order.id}
+          order={order}
+          onClick={() => onOrderClick(order)}
+          onChangeStatus={onChangeStatus}
+          onMarkDeliveryAsDelivered={onMarkDeliveryAsDelivered}
+        />
+      ))}
+    </div>
+  </div>
 
-          {/* Ready Orders */}
-          <div>
-            <h3 className="text-lg font-semibold text-green-600 mb-2">
-              Listos ({readyOrders.length})
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {readyOrders.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onClick={() => onOrderClick(order)}
-                  onChangeStatus={onChangeStatus}
-                  onMarkDeliveryAsDelivered={onMarkDeliveryAsDelivered}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+  {/* Ready Orders */}
+  <div>
+    <h3 className="text-lg font-semibold text-green-600 mb-2">
+      Listos ({readyOrders.length})
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {readyOrders.map((order) => (
+        <OrderCard
+          key={order.id}
+          order={order}
+          onClick={() => onOrderClick(order)}
+          onChangeStatus={onChangeStatus}
+          onMarkDeliveryAsDelivered={onMarkDeliveryAsDelivered}
+        />
+      ))}
+    </div>
+  </div>
+</div>
+
+
       )}
 
       {/* ✅ En Camino y Entregados (SIN CAMBIOS) */}

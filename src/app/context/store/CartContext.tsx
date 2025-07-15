@@ -1,12 +1,5 @@
 "use client";
 
-/**
- * cartcontext.tsx
- * 
- * Contexto global para manejar el estado del carrito
- * de compras en toda la tienda pública.
- */
-
 import { createContext, useContext, useState, ReactNode } from "react";
 import { Cart, CartItem, CartItemExtra } from "@/types/store/cart";
 
@@ -38,17 +31,30 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return { subtotal, deliveryFee, total };
   };
 
+  const sortExtras = (extras?: CartItemExtra[]) => {
+    if (!extras) return [];
+    return extras.slice().sort((a, b) => {
+      if (a.extra_group_sort_order !== b.extra_group_sort_order) {
+        return a.extra_group_sort_order - b.extra_group_sort_order;
+      }
+      return a.extra_sort_order - b.extra_sort_order;
+    });
+  };
+
   const addItem = (item: CartItem) => {
+    // ✅ Ordenar extras antes de guardar en el carrito
+    const sortedExtras = sortExtras(item.extras);
+
     setCart((prev) => {
       const existingIndex = prev.items.findIndex((i) => i.productId === item.productId);
       let newItems = [...prev.items];
 
       if (existingIndex > -1) {
         newItems[existingIndex].quantity += item.quantity;
-        newItems[existingIndex].extras = item.extras;
+        newItems[existingIndex].extras = sortedExtras;
         newItems[existingIndex].notes = item.notes;
       } else {
-        newItems.push(item);
+        newItems.push({ ...item, extras: sortedExtras });
       }
 
       const totals = recalculateTotals(newItems);

@@ -141,9 +141,9 @@ export default function OrderDetailsDialog({ order, open, onClose }: OrderDetail
                 </div>
               </div>
 
-              {/* ✅ SECCIÓN: Productos del Pedido */}
+              {/* ✅ SECCIÓN: Productos de la Orden */}
               <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-center sm:text-left">Productos del Pedido</h3>
+                <h3 className="text-lg font-semibold text-center sm:text-left">Productos de la Orden</h3>
                 <div className="border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50">
@@ -172,20 +172,28 @@ export default function OrderDetailsDialog({ order, open, onClose }: OrderDetail
                               ${item.unit_price * item.quantity}
                             </td>
                           </tr>
-                          {Array.isArray(item.extras) && item.extras.length > 0 && item.extras.map((extra, idx) => (
-                            <tr key={`${index}-extra-${idx}`} className="bg-gray-50">
-                              <td className="px-4 py-2">
-                                <span className="ml-4">↳ {extra.extra_name}</span>
-                              </td>
-                              <td className="px-4 py-2 text-center">{extra.quantity}</td>
-                              <td className="px-4 py-2 text-right">
-                                {extra.unit_price > 0 ? `$${extra.unit_price}` : "$0"}
-                              </td>
-                              <td className="px-4 py-2 text-right">
-                                ${extra.unit_price * extra.quantity}
-                              </td>
-                            </tr>
-                          ))}
+                          {Array.isArray(item.extras) && item.extras.length > 0 && 
+                            item.extras
+                              .slice()
+                              .sort((a, b) =>
+                                a.extra_group_sort_order !== b.extra_group_sort_order
+                                  ? a.extra_group_sort_order - b.extra_group_sort_order
+                                  : a.extra_sort_order - b.extra_sort_order
+                              )
+                              .map((extra, idx) => (
+                                <tr key={`${index}-extra-${idx}`} className="bg-gray-50">
+                                  <td className="px-4 py-2">
+                                    <span className="ml-4">↳ {extra.extra_name}</span>
+                                  </td>
+                                  <td className="px-4 py-2 text-center">{extra.quantity}</td>
+                                  <td className="px-4 py-2 text-right">
+                                    {extra.unit_price > 0 ? `$${extra.unit_price}` : "$0"}
+                                  </td>
+                                  <td className="px-4 py-2 text-right">
+                                    ${extra.unit_price * extra.quantity}
+                                  </td>
+                                </tr>
+                              ))}
                         </React.Fragment>
                       ))}
 
@@ -225,7 +233,7 @@ export default function OrderDetailsDialog({ order, open, onClose }: OrderDetail
                   <div className="text-sm space-y-2">
                     {order.order_time && (
                       <p>
-                        <strong>Hora del pedido:</strong> {formatOrderTime(order.order_time)}
+                        <strong>Hora de la orden:</strong> {formatOrderTime(order.order_time)}
                       </p>
                     )}
                   </div>

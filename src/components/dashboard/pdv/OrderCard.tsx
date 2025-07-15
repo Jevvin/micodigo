@@ -142,17 +142,17 @@ export default function OrderCard({
         </div>
 
         {/* ✅ Datos del cliente */}
-<CardDescription className="mt-1 text-[15px] text-gray-500">
-  <span className="font-semibold">{order.customer?.name || "Cliente"}</span>
-  {order.customer?.phone_number && (
-    <>
-      {" • "}
-      <span>
-        {order.customer.phone_number.replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3")}
-      </span>
-    </>
-  )}
-</CardDescription>
+        <CardDescription className="mt-1 text-[15px] text-gray-500">
+          <span className="font-semibold">{order.customer?.name || "Cliente"}</span>
+          {order.customer?.phone_number && (
+            <>
+              {" • "}
+              <span>
+                {order.customer.phone_number.replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3")}
+              </span>
+            </>
+          )}
+        </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -170,11 +170,18 @@ export default function OrderCard({
 
               {item.extras && item.extras.length > 0 && (
                 <div className="ml-4 space-y-0.5">
-                  {item.extras.map((extra, idx) => (
-                    <div key={idx} className="text-sm text-gray-600">
-                      • {extra.quantity}x {extra.extra_name} {extra.unit_price > 0 ? `+$${extra.unit_price}` : ""}
-                    </div>
-                  ))}
+                  {[...item.extras]
+                    .sort((a, b) => {
+                      if (a.extra_group_sort_order !== b.extra_group_sort_order) {
+                        return a.extra_group_sort_order - b.extra_group_sort_order;
+                      }
+                      return a.extra_sort_order - b.extra_sort_order;
+                    })
+                    .map((extra, idx) => (
+                      <div key={idx} className="text-sm text-gray-600">
+                        • {extra.quantity}x {extra.extra_name} {extra.unit_price > 0 ? `+$${extra.unit_price}` : ""}
+                      </div>
+                    ))}
                 </div>
               )}
             </div>

@@ -7,11 +7,13 @@ export type OrderStatus =
   | "rejected";
 
 export interface OrderItemExtra {
-  extra_id: string
-  extra_name: string
-  quantity: number
-  unit_price: number
-  price: number
+  extra_id: string;
+  extra_name: string;
+  quantity: number;
+  unit_price: number;
+  price: number;
+  extra_group_sort_order: number;
+  extra_sort_order: number;
 }
 
 export interface OrderItem {

@@ -5,11 +5,14 @@
  */
 
 export interface CartItemExtra {
-  id: number
-  name: string
-  price: number
-  quantity: number
-  groupId?: number
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  groupId: number;
+  extra_group_name: string;
+  extra_group_sort_order: number;
+  extra_sort_order: number;
 }
 
 

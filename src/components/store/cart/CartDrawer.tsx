@@ -82,14 +82,21 @@ export default function CartDrawer({
                     {item.extras && item.extras.length > 0 && (
                       <div className="mt-2 space-y-1">
                         <p className="text-xs font-medium">Extras:</p>
-                        {item.extras.map((extra: any, i: number) => (
-                          <div key={i} className="flex justify-between text-xs text-gray-600">
-                            <span>
-                              {extra.quantity} x {extra.name}
-                            </span>
-                            <span>${extra.price * extra.quantity}</span>
-                          </div>
-                        ))}
+                        {[...item.extras]
+                          .sort((a, b) => {
+                            if (a.extra_group_sort_order !== b.extra_group_sort_order) {
+                              return a.extra_group_sort_order - b.extra_group_sort_order;
+                            }
+                            return a.extra_sort_order - b.extra_sort_order;
+                          })
+                          .map((extra: any, i: number) => (
+                            <div key={i} className="flex justify-between text-xs text-gray-600">
+                              <span>
+                                {extra.quantity} x {extra.name}
+                              </span>
+                              <span>${extra.price * extra.quantity}</span>
+                            </div>
+                          ))}
                       </div>
                     )}
                   </div>
@@ -101,7 +108,7 @@ export default function CartDrawer({
                     <X className="h-4 w-4 text-red-500" />
                   </Button>
                 </div>
-                <div className="flex justify-between text-sm font-medium text-green-700 pt-1 border-t">
+                <div className="flex justify-between text-sm text-green-700 pt-1 border-t">
                   <span>Subtotal:</span>
                   <span>${itemSubtotal}</span>
                 </div>
