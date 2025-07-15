@@ -12,6 +12,7 @@ export default async function PDVPage() {
   // ✅ 1️⃣ Verificar usuario autenticado
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
+    console.log("❌ No hay usuario autenticado")
     return <p className="p-4">Debes iniciar sesión para ver esta página.</p>
   }
 
@@ -23,18 +24,20 @@ export default async function PDVPage() {
     .single()
 
   if (error || !restaurant) {
-    console.error("Error al obtener restaurante:", error)
+    console.error("❌ Error al obtener restaurante:", error)
     return <p className="p-4">Error: No se encontró restaurante asociado a tu cuenta.</p>
   }
 
   const restaurantId = restaurant.id
+  console.log("🟢 Restaurant ID encontrado:", restaurantId)
 
   // ✅ 3️⃣ Obtener pedidos reales
   let orders: Order[] = []
   try {
     orders = await getOrdersByRestaurant(restaurantId.toString())
+    console.log("🟡 Pedidos obtenidos del server:", orders)
   } catch (err) {
-    console.error("Error al obtener pedidos:", err)
+    console.error("❌ Error al obtener pedidos:", err)
   }
 
   // ✅ 4️⃣ Renderizar Client Component con los datos

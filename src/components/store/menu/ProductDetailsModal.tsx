@@ -31,13 +31,11 @@ export default function ProductDetailsModal({
       const exists = prev.find((e) => e.id === extra.id);
 
       if (ruleType === "single") {
-        // Solo uno por grupo
         const filtered = prev.filter((e) => e.groupId !== groupId);
         return exists ? filtered : [...filtered, { ...extra, quantity: 1, groupId }];
       }
 
       if (ruleType === "multiple") {
-        // Varios por grupo
         return exists
           ? prev.filter((e) => e.id !== extra.id)
           : [...prev, { ...extra, quantity: 1, groupId }];
@@ -47,8 +45,14 @@ export default function ProductDetailsModal({
     });
   };
 
-  const extrasTotal = selectedExtras.reduce((sum, e) => sum + (e.price * (e.quantity || 1)), 0);
-  const totalPrice = (product.price * quantity) + extrasTotal;
+  // ✅ Calcula TOTAL DE EXTRAS para UNA unidad
+  const extrasTotalSingle = selectedExtras.reduce(
+    (sum, e) => sum + (e.price * (e.quantity || 1)),
+    0
+  );
+
+  // ✅ Multiplica por la cantidad de productos seleccionados
+  const totalPrice = ((product.price + extrasTotalSingle) * quantity);
 
   const handleAddToCart = () => {
     const item = {
@@ -58,6 +62,7 @@ export default function ProductDetailsModal({
       quantity,
       notes,
       extras: selectedExtras,
+      extrasTotal: extrasTotalSingle,
       image: product.image
     };
     onAddToCart(item);
@@ -91,19 +96,7 @@ export default function ProductDetailsModal({
           <div className="space-y-2">
             <p className="font-medium">Precio base: ${product.price}</p>
 
-            {/* Cantidad */}
-            <div className="flex items-center space-x-2">
-              <span className="text-sm">Cantidad:</span>
-              <input
-                type="number"
-                min={1}
-                value={quantity}
-                onChange={(e) => setQuantity(Number(e.target.value))}
-                className="w-16 border rounded px-2 py-1 text-sm"
-              />
-            </div>
-
-            {/* Extras REALES en Acordeón */}
+            {/* Extras en acordeón */}
             {extraGroups && extraGroups.length > 0 && (
               <div>
                 <p className="text-sm font-medium mb-1">Extras:</p>
@@ -126,7 +119,7 @@ export default function ProductDetailsModal({
                                   key={extra.id}
                                   variant={selected ? "default" : "outline"}
                                   className="text-sm"
-                                  onClick={() => handleToggleExtra(group.id, extra, group.rule_type)}
+                                  onClick={() => handleToggleExtra(group.id, extra, group.ruleType)}
                                 >
                                   {extra.name} +${extra.price}
                                 </Button>
@@ -136,7 +129,7 @@ export default function ProductDetailsModal({
                             <p className="text-xs text-gray-400">No hay extras disponibles en este grupo.</p>
                           )}
                         </div>
-                        {group.is_required && (
+                        {group.isRequired && (
                           <p className="text-xs text-red-500">* Obligatorio</p>
                         )}
                       </AccordionContent>
@@ -158,18 +151,30 @@ export default function ProductDetailsModal({
               />
             </div>
 
+            {/* Selector de cantidad + botón de añadir */}
+            <div className="flex items-center space-x-2 mt-4">
+              <label className="text-sm">Cantidad:</label>
+              <input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(e) => setQuantity(Number(e.target.value))}
+                className="w-16 border rounded px-2 py-1 text-sm"
+              />
+
+              <Button
+                className="flex-1 bg-black text-white hover:bg-gray-900"
+                onClick={handleAddToCart}
+              >
+                Añadir al carrito
+              </Button>
+            </div>
+
             {/* Precio Total */}
             <div className="text-right text-base font-bold mt-2">
               Total: ${totalPrice}
             </div>
           </div>
-
-          <Button
-            className="w-full bg-black text-white hover:bg-gray-900"
-            onClick={handleAddToCart}
-          >
-            Añadir al carrito
-          </Button>
         </CardContent>
       </Card>
     </div>

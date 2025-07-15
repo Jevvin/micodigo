@@ -1,14 +1,5 @@
 "use client";
 
-/**
- * RestaurantPage
- * 
- * Página principal del restaurante.
- * - Muestra portada, tabs, lista de productos
- * - Modal de producto con selección de extras
- * - Carrito, checkout
- */
-
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/app/utils/supabaseClient";
@@ -53,21 +44,46 @@ export default function RestaurantPage() {
   const [categories, setCategories] = useState<string[]>(["Platillos", "Postres", "Bebidas"]);
   const [selectedCategory, setSelectedCategory] = useState<string>(categories[0]);
 
-  // Modal product
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [extraGroups, setExtraGroups] = useState<any[]>([]);
 
+  const [cities, setCities] = useState<{ id: number; name: string; state: string }[]>([]);
+
+  /** ✅ Cargar lista de ciudades desde Supabase */
+  const fetchCities = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("cities")
+        .select("id, name, state")
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error("❌ Error cargando ciudades:", error);
+        setCities([]);
+      } else {
+        setCities(data || []);
+      }
+    } catch (err) {
+      console.error("❌ Error general al cargar ciudades:", err);
+      setCities([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchCities();
+  }, []);
+
   /**
    * ✅ Cargar grupos de extras asignados a un producto
    */
-    const fetchExtrasForProduct = async (productId: number) => {
+  const fetchExtrasForProduct = async (productId: number) => {
     const { data, error } = await supabase
       .from("product_extra_groups")
       .select(`
         id,
         sort_order,
-        extra_group (
+        extra_groups (
           id,
           name,
           description,
@@ -88,22 +104,16 @@ export default function RestaurantPage() {
       .eq("product_id", productId)
       .order("sort_order", { ascending: true });
 
-    if (error) {
-      console.error("Error cargando extras:", error);
+    if (error || !data) {
+      console.error("❌ Error cargando extras:", error);
       setExtraGroups([]);
       return;
     }
 
-    if (!data || data.length === 0) {
-      setExtraGroups([]);
-      return;
-    }
-
-    // ✅ Mapear resultados CORRECTAMENTE
     const groups = data
-      .filter((row) => Array.isArray(row.extra_group) && row.extra_group.length > 0)
+      .filter((row) => row.extra_groups !== null)
       .map((row) => {
-        const group = row.extra_group[0];
+        const group = row.extra_groups as any;
         return {
           id: group.id,
           name: group.name,
@@ -121,10 +131,7 @@ export default function RestaurantPage() {
     setExtraGroups(groups);
   };
 
-
-  /**
-   * ✅ Al abrir modal de producto
-   */
+  /** ✅ Al abrir modal de producto */
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     setShowProductModal(true);
@@ -141,61 +148,42 @@ export default function RestaurantPage() {
     openCheckout();
   };
 
-  const handleConfirmOrder = async () => {
+  /** ✅ Confirmar y guardar orden vía API */
+  const handleConfirmOrder = async (orderPayload: any) => {
     if (items.length === 0) {
       alert("Tu carrito está vacío");
       return;
     }
 
-    if (!checkout.isValid()) {
-      alert("Por favor completa los datos del cliente y método de pago");
-      return;
-    }
-
-    const orderPayload = checkout.generateOrderPayload();
-
     try {
-      const { data: order, error } = await supabase
-        .from("orders")
-        .insert([
-          {
-            restaurant_id: restaurant?.id,
-            customer_id: null,
-            delivery_type: "delivery",
-            payment_method: orderPayload.paymentMethod,
-            total: orderPayload.total,
-            status: "new",
-            special_instructions: orderPayload.customer.notes,
-          }
-        ])
-        .select()
-        .single();
+      const response = await fetch("/api/store/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          restaurantId: restaurant?.id,
+          customer: orderPayload.customer,
+          address: orderPayload.address,
+          items: orderPayload.items,
+          total: orderPayload.total,
+          paymentMethod: orderPayload.paymentMethod,
+          deliveryType: "delivery",
+          specialInstructions: orderPayload.customer?.notes || "",
+        }),
+      });
 
-      if (error) throw error;
-
-      const itemsToInsert = orderPayload.items.map((item) => ({
-        order_id: order.id,
-        product_id: item.productId,
-        product_name: item.productName,
-        quantity: item.quantity,
-        unit_price: item.price,
-        notes: item.notes,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from("order_items")
-        .insert(itemsToInsert);
-
-      if (itemsError) throw itemsError;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error desconocido");
+      }
 
       clearCart();
       closeCheckout();
-
       alert("¡Pedido guardado exitosamente!");
-
     } catch (err: any) {
-      console.error("Error al guardar la orden:", err.message);
-      alert("Hubo un problema al guardar tu pedido.");
+      console.error("❌ ERROR AL GUARDAR ORDEN:", err);
+      alert(`Hubo un problema al guardar tu pedido: ${err.message || JSON.stringify(err)}`);
     }
   };
 
@@ -298,7 +286,6 @@ export default function RestaurantPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* PORTADA */}
       <div className="relative">
         <img
           src={restaurant.cover_image_url || "/placeholder.svg"}
@@ -311,7 +298,6 @@ export default function RestaurantPage() {
         </div>
       </div>
 
-      {/* HEADER */}
       <div className="-mt-6 mx-4 mb-6 relative z-10">
         <RestaurantHeader
           restaurant={restaurant}
@@ -321,7 +307,6 @@ export default function RestaurantPage() {
         />
       </div>
 
-      {/* INFO MODAL */}
       <RestaurantInfoModal
         open={showInfoModal}
         onClose={() => setShowInfoModal(false)}
@@ -329,7 +314,6 @@ export default function RestaurantPage() {
         statusText={statusText}
       />
 
-      {/* MENÚ TABS y LISTA */}
       <div className="max-w-7xl mx-auto px-4 pb-8">
         <RestaurantTabs
           categories={categories}
@@ -342,7 +326,6 @@ export default function RestaurantPage() {
         />
       </div>
 
-      {/* PRODUCT DETAILS MODAL */}
       <ProductDetailsModal
         open={showProductModal}
         onClose={() => setShowProductModal(false)}
@@ -351,7 +334,6 @@ export default function RestaurantPage() {
         extraGroups={extraGroups}
       />
 
-      {/* CART DRAWER */}
       <CartDrawer
         open={isDrawerOpen}
         onClose={closeDrawer}
@@ -360,13 +342,14 @@ export default function RestaurantPage() {
         onProceedToCheckout={handleProceedToCheckout}
       />
 
-      {/* CHECKOUT */}
       <CheckoutModal
         open={isCheckoutOpen}
         onClose={closeCheckout}
         cartItems={items}
         onRemoveItem={removeItem}
         onConfirm={handleConfirmOrder}
+        fetchCities={fetchCities}
+        cities={cities || []}
       />
     </div>
   );

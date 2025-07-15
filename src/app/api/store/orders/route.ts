@@ -18,11 +18,22 @@ export async function POST(req: NextRequest) {
     specialInstructions
   } = body;
 
-  if (!restaurantId || !customer || !items || items.length === 0) {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  // ✅ Validación fuerte
+  if (!restaurantId || !customer || !items || items.length === 0 || !address) {
+    return NextResponse.json({ error: "Invalid request - missing data" }, { status: 400 });
   }
 
-  // 1️⃣ Insertar/obtener customer
+  if (
+    !customer.name ||
+    !customer.phone ||
+    !address.street ||
+    !address.city ||
+    !address.state
+  ) {
+    return NextResponse.json({ error: "Invalid request - missing fields" }, { status: 400 });
+  }
+
+  // 1️⃣ Insertar CUSTOMER
   let customerId = customer.id;
   if (!customerId) {
     const { data: newCustomer, error: customerError } = await supabase
@@ -30,7 +41,8 @@ export async function POST(req: NextRequest) {
       .insert([{
         name: customer.name,
         email: customer.email,
-        phone: customer.phone
+        phone_number: customer.phone,
+        restaurant_id: restaurantId
       }])
       .select()
       .single();
@@ -39,19 +51,45 @@ export async function POST(req: NextRequest) {
       console.error("Error inserting customer:", customerError);
       return NextResponse.json({ error: "Customer insert failed" }, { status: 500 });
     }
+
     customerId = newCustomer.id;
   }
 
-  // 2️⃣ Insertar la orden
+  // 2️⃣ Insertar CUSTOMER ADDRESS
+  let addressId = address?.id;
+  if (!addressId && address) {
+    const { data: newAddress, error: addressError } = await supabase
+      .from("customer_addresses")
+      .insert([{
+        customer_id: customerId,
+        street: address.street,
+        label: address.label,
+        city: address.city,
+        state: address.state,
+        postal_code: address.postal_code,
+        notes: address.notes
+      }])
+      .select()
+      .single();
+
+    if (addressError) {
+      console.error("Error inserting address:", addressError);
+      return NextResponse.json({ error: "Address insert failed" }, { status: 500 });
+    }
+
+    addressId = newAddress.id;
+  }
+
+  // 3️⃣ Insertar la ORDEN
   const { data: newOrder, error: orderError } = await supabase
     .from("orders")
     .insert([{
       restaurant_id: restaurantId,
       customer_id: customerId,
-      total,
+      address_id: addressId,
+      total_amount: total,
       payment_method: paymentMethod,
       delivery_type: deliveryType,
-      address,
       special_instructions: specialInstructions,
       status: "new"
     }])
@@ -65,14 +103,17 @@ export async function POST(req: NextRequest) {
 
   const orderId = newOrder.id;
 
-  // 3️⃣ Insertar los items
+  // 4️⃣ Insertar ORDER ITEMS
   for (const item of items) {
     const { data: orderItem, error: itemError } = await supabase
       .from("order_items")
       .insert([{
         order_id: orderId,
         product_id: item.productId,
+        product_name: item.name,
+        unit_price: item.price,
         quantity: item.quantity,
+        price: item.price * item.quantity,
         notes: item.notes
       }])
       .select()
@@ -83,14 +124,17 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    // 4️⃣ Insertar extras del item
+    // 5️⃣ Insertar ORDER ITEM EXTRAS
     for (const extra of item.extras || []) {
       const { error: extraError } = await supabase
         .from("order_item_extras")
         .insert([{
           order_item_id: orderItem.id,
-          extra_id: extra.extraId,
-          quantity: extra.quantity
+          extra_id: extra.id,
+          extra_name: extra.name,
+          unit_price: extra.price,
+          quantity: extra.quantity,
+          price: extra.price * extra.quantity
         }]);
 
       if (extraError) {

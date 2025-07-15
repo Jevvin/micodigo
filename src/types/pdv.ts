@@ -4,31 +4,55 @@ export type OrderStatus =
   | "ready"
   | "out_for_delivery"
   | "delivered"
-  | "rejected"
+  | "rejected";
+
+export interface OrderItemExtra {
+  extra_id: string
+  extra_name: string
+  quantity: number
+  unit_price: number
+  price: number
+}
 
 export interface OrderItem {
-  name: string
+  product_id: string
+  product_name: string
   quantity: number
-  price: number
+  unit_price: number
+  notes?: string
+  extras?: OrderItemExtra[]
+}
+
+export interface Customer {
+  id: string
+  name: string
+  email?: string
+  phone_number?: string
+}
+
+export interface CustomerAddress {
+  id: string
+  street: string
+  label?: string
+  city: string
+  state: string
+  postal_code?: string
   notes?: string
 }
 
 export interface Order {
   id: string
-  customer: string
-  phone?: string
-  email?: string
-  address?: string
-  items: OrderItem[]
-  total: number
+  restaurant_id: string
   status: OrderStatus
-  deliveryType: "pickup" | "delivery"
-  paymentMethod: "cash" | "card"
-  time?: string
-  estimatedTime?: number
-  departureTime?: string
-  deliveredAt?: string
-  orderTime?: string
-  specialInstructions?: string
-  estimatedDelivery?: string
+  delivery_type: "pickup" | "delivery"
+  payment_method: "cash" | "card"
+  total_amount: number
+  special_instructions?: string
+  order_time?: string
+
+  // NEW
+  customer?: Customer
+  customer_address?: CustomerAddress
+
+  items: OrderItem[]
 }
