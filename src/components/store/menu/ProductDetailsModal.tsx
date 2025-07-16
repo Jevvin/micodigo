@@ -53,7 +53,7 @@ export default function ProductDetailsModal({
       quantity: 1,
       groupId,
       extra_group_name: group.name,
-      extra_group_sort_order: group.sort_order,
+      extra_group_sort_order: group.sortOrder,
       extra_sort_order: extra.sort_order
     };
 
@@ -147,7 +147,7 @@ export default function ProductDetailsModal({
                 <Accordion type="multiple" className="w-full">
                   {extraGroups
                     .slice()
-                    .sort((a, b) => a.sort_order - b.sort_order)
+                    .sort((a, b) => a.sortOrder - b.sortOrder)
                     .map((group: any) => (
                       <AccordionItem key={group.id} value={group.id.toString()}>
                         <AccordionTrigger>

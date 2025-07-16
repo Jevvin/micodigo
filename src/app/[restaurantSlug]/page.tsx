@@ -97,7 +97,8 @@ export default function RestaurantPage() {
             name,
             price,
             stock,
-            is_active
+            is_active,
+            sort_order
           )
         )
       `)
@@ -123,7 +124,7 @@ export default function RestaurantPage() {
           isIncluded: group.is_included,
           maxSelections: group.max_selections,
           minSelections: group.min_selections,
-          extras: group.extras ?? [],
+          extras: (group.extras ?? []).slice().sort((a: any, b: any) => a.sort_order - b.sort_order),
           sortOrder: row.sort_order,
         };
       });
