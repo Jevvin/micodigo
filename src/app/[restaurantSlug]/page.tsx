@@ -7,7 +7,7 @@ import RestaurantHeader from "@/components/store/header/RestaurantHeader";
 import RestaurantStatusBadge from "@/components/store/header/RestaurantStatusBadge";
 import RestaurantInfoModal from "@/components/store/infoModal/RestaurantInfoModal";
 import StickyCategoryTabs from "@/components/store/menu/StickyCategoryTabs";
-import MenuSection from "@/components/store/menu/MenuSection";
+import MenuSection, { normalizeTitleToId } from "@/components/store/menu/MenuSection";
 import ProductDetailsModal from "@/components/store/menu/ProductDetailsModal";
 import CartDrawer from "@/components/store/cart/CartDrawer";
 import CheckoutModal from "@/components/store/cart/CheckoutModal";
@@ -351,10 +351,14 @@ export default function RestaurantPage() {
                 }}
               >
                 <MenuSection
-                  title={category}
-                  products={categoryProducts}
-                  onSelectProduct={handleProductClick}
-                />
+  key={category}
+  ref={(el) => {
+    if (el) categoryRefs.current[normalizeTitleToId(category)] = el;
+  }}
+  title={category}
+  products={categoryProducts}
+  onSelectProduct={handleProductClick}
+/>
               </div>
             );
           })
