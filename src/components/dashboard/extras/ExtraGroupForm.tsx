@@ -2,22 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { ExtraGroup } from "@/types/menu";
 
-// 📌 Define tu tipo ExtraGroup si no lo importas
-interface ExtraGroup {
-  id: string;
-  name: string;
-  description: string;
-  ruleType: "single" | "multiple" | "quantity";
-  isRequired: boolean;
-  maxSelections: number;
-  minSelections: number;
-  isIncluded: boolean;
-  sortOrder: number;
-  items: any[]; // Puedes definir mejor ExtraItem si quieres
-}
-
-// ✅ Formulario reutilizable para CREAR o EDITAR un Grupo de Extras
 export default function ExtraGroupForm({
   group,
   onSave,
@@ -27,7 +13,9 @@ export default function ExtraGroupForm({
   onSave: (group: ExtraGroup) => void;
   onCancel: () => void;
 }) {
-  // 📌 Estado local para el formulario
+  // ... resto del código igual
+
+
   const [formData, setFormData] = useState<{
     name: string;
     description: string;
@@ -36,26 +24,40 @@ export default function ExtraGroupForm({
     maxSelections: number;
     minSelections: number;
     isIncluded: boolean;
+    isVisible: boolean;
   }>({
     name: group?.name || "",
     description: group?.description || "",
     ruleType: group?.ruleType || "single",
     isRequired: group?.isRequired ?? true,
     maxSelections: group?.maxSelections || 1,
-    minSelections: group?.minSelections || 0,
+    minSelections: group?.isRequired ? Math.max(1, group?.minSelections || 1) : 0,
     isIncluded: group?.isIncluded ?? false,
+    isVisible: group?.isVisible ?? true,
   });
 
-  // 📌 Manejar submit del form
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validaciones
+    if (!formData.isRequired && formData.minSelections > 0) {
+      alert("Si el grupo no es obligatorio, el mínimo de selecciones debe ser 0.");
+      return;
+    }
+
+    if (formData.isRequired && formData.minSelections < 1) {
+      alert("Si el grupo es obligatorio, debe tener al menos 1 selección mínima.");
+      return;
+    }
+
     const newGroup: ExtraGroup = {
-      id: group?.id || `grp-${Date.now()}`,
-      ...formData,
-      sortOrder: group?.sortOrder || 0,
-      items: group?.items || [],
-    };
+  id: group?.id || `grp-${Date.now()}`,
+  restaurantId: group?.restaurantId || "", // ← aquí
+  ...formData,
+  sortOrder: group?.sortOrder || 0,
+  items: group?.items || [],
+};
+
 
     onSave(newGroup);
   };
@@ -105,7 +107,14 @@ export default function ExtraGroupForm({
           type="checkbox"
           id="isRequired"
           checked={formData.isRequired}
-          onChange={(e) => setFormData({ ...formData, isRequired: e.target.checked })}
+          onChange={(e) => {
+            const isRequired = e.target.checked;
+            setFormData((prev) => ({
+              ...prev,
+              isRequired,
+              minSelections: isRequired ? Math.max(1, prev.minSelections) : 0,
+            }));
+          }}
         />
         <label htmlFor="isRequired">Obligatorio</label>
       </div>
@@ -120,6 +129,7 @@ export default function ExtraGroupForm({
             onChange={(e) =>
               setFormData({ ...formData, minSelections: Number(e.target.value) })
             }
+            disabled={!formData.isRequired}
           />
         </div>
         <div>
@@ -143,6 +153,18 @@ export default function ExtraGroupForm({
           onChange={(e) => setFormData({ ...formData, isIncluded: e.target.checked })}
         />
         <label htmlFor="isIncluded">Incluido sin costo</label>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="isVisible"
+          checked={formData.isVisible}
+          onChange={(e) => setFormData({ ...formData, isVisible: e.target.checked })}
+        />
+        <label htmlFor="isVisible" className="font-medium">
+          {formData.isVisible ? "✅ Grupo visible" : "🚫 Grupo oculto"}
+        </label>
       </div>
 
       <div className="flex justify-end space-x-2">

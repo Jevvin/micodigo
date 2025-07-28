@@ -1,4 +1,4 @@
-// src/app/api/store/orders.ts
+// src/app/api/store/orders/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
@@ -18,18 +18,18 @@ export async function POST(req: NextRequest) {
     specialInstructions
   } = body;
 
-  // ✅ Validación fuerte
   if (!restaurantId || !customer || !items || items.length === 0 || !address) {
     return NextResponse.json({ error: "Invalid request - missing data" }, { status: 400 });
   }
 
   if (
-    !customer.name ||
-    !customer.phone ||
-    !address.street ||
-    !address.city ||
-    !address.state
+    !customer.name?.trim() ||
+    !customer.phone?.trim() ||
+    !address?.street?.trim() ||
+    !address?.city?.trim() ||
+    !address?.state?.trim()
   ) {
+    console.error("[❌] Missing required address or customer fields", { customer, address });
     return NextResponse.json({ error: "Invalid request - missing fields" }, { status: 400 });
   }
 
@@ -103,6 +103,8 @@ export async function POST(req: NextRequest) {
 
   const orderId = newOrder.id;
 
+  const summaryItems = [];
+
   // 4️⃣ Insertar ORDER ITEMS
   for (const item of items) {
     const { data: orderItem, error: itemError } = await supabase
@@ -110,7 +112,7 @@ export async function POST(req: NextRequest) {
       .insert([{
         order_id: orderId,
         product_id: item.productId,
-        product_name: item.name,
+        product_name: item.productName,
         unit_price: item.price,
         quantity: item.quantity,
         price: item.price * item.quantity,
@@ -123,6 +125,13 @@ export async function POST(req: NextRequest) {
       console.error("Error inserting order item:", itemError);
       continue;
     }
+
+    // Agregar al resumen
+    summaryItems.push({
+      name: item.productName,
+      quantity: item.quantity,
+      price: item.price * item.quantity,
+    });
 
     // 5️⃣ Insertar ORDER ITEM EXTRAS
     for (const extra of item.extras || []) {
@@ -140,8 +149,38 @@ export async function POST(req: NextRequest) {
       if (extraError) {
         console.error("Error inserting order item extra:", extraError);
       }
+
+      // Agregar extra al resumen también
+      summaryItems.push({
+        name: `➕ ${extra.name}`,
+        quantity: extra.quantity,
+        price: extra.price * extra.quantity,
+      });
     }
   }
 
-  return NextResponse.json({ success: true, orderId });
+  // 6️⃣ Obtener nombre del restaurante
+  const { data: restaurantData } = await supabase
+    .from("restaurants")
+    .select("name, phone")
+    .eq("id", restaurantId)
+    .single();
+
+  const restaurantName = restaurantData?.name || "Restaurante";
+
+  const confirmedOrder = {
+  orderId, // ✅ ¡añadido!
+  restaurantName: restaurantData?.name || "Restaurante",
+  restaurantPhone: restaurantData?.phone || "",
+  customerName: customer.name,
+  items: summaryItems,
+  total,
+  status: "new"
+};
+
+  return NextResponse.json({
+    success: true,
+    orderId,
+    confirmedOrder // 🔄 frontend lo guarda en localStorage
+  });
 }

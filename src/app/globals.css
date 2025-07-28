@@ -90,3 +90,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes toast-bar {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-toast-bar {
+  animation: toast-bar var(--toast-duration, 4000ms) linear forwards;
+}
+

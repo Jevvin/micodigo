@@ -1,110 +1,159 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import LiveOrders from "./LiveOrders"
-import OrderDetailsDialog from "./OrderDetailsDialog"
-import { Order, OrderStatus } from "@/types/pdv"
-import { supabase } from "@/app/utils/supabaseClient"
+import { useEffect, useState } from "react";
+import LiveOrders from "./LiveOrders";
+import OrderDetailsDialog from "./OrderDetailsDialog";
+import { Order, OrderStatus } from "@/types/pdv";
+import useManageOrders from "@/hooks/dashboard/useManageOrder";
+import { supabase } from "@/app/utils/supabaseClient";
+import RejectOrderDialog from "./RejectOrderDialog"; // ✅ Asegúrate de importar el componente
+
 
 interface PDVClientProps {
-  orders: Order[]
+  orders: Order[];
 }
 
 export default function PDVClient({ orders }: PDVClientProps) {
-  // ✅ Estado local con todos los pedidos cargados
-  const [allOrders, setAllOrders] = useState<Order[]>(orders)
+  // ✅ Todos los hooks van al inicio
+  const [restaurantId, setRestaurantId] = useState<number | null>(null);
+  const [loadingId, setLoadingId] = useState(true);
 
-  // ✅ Estado del modal de detalles
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState<boolean>(false)
+  const [allOrders, setAllOrders] = useState<Order[]>(orders);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState<boolean>(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState<boolean>(false);
+  const [orderToReject, setOrderToReject] = useState<Order | null>(null);
 
-  // ✅ Estado para modal de confirmación de rechazo
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState<boolean>(false)
-  const [orderToReject, setOrderToReject] = useState<Order | null>(null)
+  const {
+    updateOrderStatus,
+    approveOrderStock,
+    cancelOrderStock,
+    loading,
+  } = useManageOrders(restaurantId ?? -1); // 🛡️ Fallback para evitar errores en el hook
 
-  console.log("🟢 Pedidos recibidos en PDVClient:", orders)
-  console.log("🟡 Todos los pedidos en estado local:", allOrders)
+  // ✅ Obtener el restaurantId al montar
+  useEffect(() => {
+    const fetchRestaurantId = async () => {
+      setLoadingId(true);
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  // ✅ Filtrar por estatus
-  const newOrders = allOrders.filter((o) => o.status === "new")
-  const preparingOrders = allOrders.filter((o) => o.status === "preparing")
-  const readyOrders = allOrders.filter((o) => o.status === "ready")
-  const deliveryOrders = allOrders.filter((o) => o.status === "out_for_delivery")
-  const deliveredOrders = allOrders.filter((o) => o.status === "delivered")
-
-  // ✅ Abrir el modal de detalles
-  function handleOrderClick(order: Order) {
-    setSelectedOrder(order)
-    setIsDetailsDialogOpen(true)
-  }
-
-  // ✅ Cerrar el modal de detalles
-  function handleCloseDetailsDialog() {
-    setIsDetailsDialogOpen(false)
-    setSelectedOrder(null)
-  }
-
-  // ✅ Abrir el modal de confirmación de rechazo
-  function handleOpenRejectDialog(order: Order) {
-    setOrderToReject(order)
-    setIsRejectDialogOpen(true)
-  }
-
-  // ✅ Confirmar rechazo del pedido
-  async function handleConfirmReject() {
-    if (orderToReject) {
-      await updateOrderStatus(orderToReject.id, "rejected")
-      setIsRejectDialogOpen(false)
-      setOrderToReject(null)
-    }
-  }
-
-  // ✅ Cancelar rechazo
-  function handleCancelReject() {
-    setIsRejectDialogOpen(false)
-    setOrderToReject(null)
-  }
-
-  // ✅ Actualizar el estado del pedido en Supabase
-  async function updateOrderStatus(orderId: string, newStatus: OrderStatus) {
-    try {
-      const { data, error } = await supabase
-        .from("orders")
-        .update({ status: newStatus })
-        .eq("id", orderId)
-        .select()
-        .single()
-
-      if (error) {
-        console.error("❌ Error al actualizar estado en Supabase:", error)
-        return
+      if (userError || !user) {
+        console.error("❌ No se pudo obtener el usuario:", userError);
+        setRestaurantId(null);
+        setLoadingId(false);
+        return;
       }
 
-      // ✅ Actualizar el estado local
-      setAllOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-      )
-    } catch (err) {
-      console.error("❌ Error general al actualizar:", err)
+      const { data, error } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (error || !data) {
+        console.error("❌ No se pudo obtener el restaurantId:", error);
+        setRestaurantId(null);
+      } else {
+        setRestaurantId(data.id);
+      }
+
+      setLoadingId(false);
+    };
+
+    fetchRestaurantId();
+  }, []);
+
+  // 🕐 Estado de carga de restaurantId
+  if (loadingId) return <div className="text-center py-8">Cargando restaurante...</div>;
+
+  // 🚫 Si no se pudo obtener restaurantId
+  if (!restaurantId) {
+    return <div className="text-center py-8 text-red-600">Error: No se pudo obtener el restaurante</div>;
+  }
+
+  // 🗂️ Clasificación de pedidos
+  const newOrders = allOrders.filter((o) => o.status === "new");
+  const preparingOrders = allOrders.filter((o) => o.status === "preparing");
+  const readyOrders = allOrders.filter((o) => o.status === "ready");
+  const deliveryOrders = allOrders.filter((o) => o.status === "out_for_delivery");
+  const deliveredOrders = allOrders.filter((o) => o.status === "delivered");
+
+  // 👉 Abrir detalles
+  function handleOrderClick(order: Order) {
+    setSelectedOrder(order);
+    setIsDetailsDialogOpen(true);
+  }
+
+  function handleCloseDetailsDialog() {
+    setIsDetailsDialogOpen(false);
+    setSelectedOrder(null);
+  }
+
+  function handleOpenRejectDialog(order: Order) {
+    setOrderToReject(order);
+    setIsRejectDialogOpen(true);
+  }
+
+  function handleCancelReject() {
+    setIsRejectDialogOpen(false);
+    setOrderToReject(null);
+  }
+
+  // ❌ Rechazar pedido
+  async function handleConfirmReject() {
+    if (orderToReject) {
+      try {
+        await updateOrderStatus(orderToReject.id, "rejected");
+        await cancelOrderStock(orderToReject);
+        setAllOrders((prev) =>
+          prev.map((o) =>
+            o.id === orderToReject.id ? { ...o, status: "rejected" } : o
+          )
+        );
+      } catch (err) {
+        console.error("❌ Error al rechazar pedido:", err);
+      } finally {
+        setIsRejectDialogOpen(false);
+        setOrderToReject(null);
+      }
     }
   }
 
-  // ✅ Handlers específicos para cada acción
-  async function handleChangeStatus(orderId: string, newStatus: string) {
-    await updateOrderStatus(orderId, newStatus as OrderStatus)
+  // ✅ Aprobar pedido y descontar stock
+  async function handleApproveOrder(order: Order) {
+    try {
+      await approveOrderStock(order);
+      await updateOrderStatus(order.id, "preparing");
+      setAllOrders((prev) =>
+        prev.map((o) =>
+          o.id === order.id ? { ...o, status: "preparing" } : o
+        )
+      );
+    } catch (err) {
+      console.error("❌ Error al aprobar pedido:", err);
+    }
   }
 
-  async function handleRejectOrder(order: Order) {
-    handleOpenRejectDialog(order)
+  // 🔄 Cambiar estado manualmente
+  async function handleChangeStatus(orderId: string, newStatus: string) {
+    try {
+      await updateOrderStatus(orderId, newStatus as OrderStatus);
+      setAllOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId ? { ...o, status: newStatus as OrderStatus } : o
+        )
+      );
+    } catch (err) {
+      console.error("❌ Error al cambiar estado:", err);
+    }
   }
 
   async function handleMarkDeliveryAsDelivered(orderId: string) {
-    await updateOrderStatus(orderId, "delivered")
+    await handleChangeStatus(orderId, "delivered");
   }
 
   return (
     <div className="space-y-6">
-      {/* ✅ Renderizar la lista de órdenes en vivo */}
       <LiveOrders
         newOrders={newOrders}
         preparingOrders={preparingOrders}
@@ -116,19 +165,27 @@ export default function PDVClient({ orders }: PDVClientProps) {
         isRejectDialogOpen={isRejectDialogOpen}
         onOrderClick={handleOrderClick}
         onCloseDetailsDialog={handleCloseDetailsDialog}
-        onRejectOrder={handleRejectOrder}
+        onRejectOrder={handleOpenRejectDialog}
         onConfirmReject={handleConfirmReject}
         onCancelReject={handleCancelReject}
         onChangeStatus={handleChangeStatus}
         onMarkDeliveryAsDelivered={handleMarkDeliveryAsDelivered}
+        onApproveOrder={handleApproveOrder}
+        loading={loading}
       />
 
-      {/* ✅ Modal para ver los detalles de cualquier pedido */}
       <OrderDetailsDialog
         order={selectedOrder}
         open={isDetailsDialogOpen}
         onClose={handleCloseDetailsDialog}
       />
+
+      <RejectOrderDialog
+  order={orderToReject}
+  open={isRejectDialogOpen}
+  onConfirm={handleConfirmReject}
+  onCancel={handleCancelReject}
+/>
     </div>
-  )
+  );
 }

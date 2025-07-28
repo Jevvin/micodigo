@@ -1,9 +1,12 @@
 "use client"
 
-import  OrdersGrid  from "./OrdersGrid"
-import  OrderDetailsDialog  from "./OrderDetailsDialog"
-import  RejectOrderDialog  from "./RejectOrderDialog"
+import { useState } from "react"
+import OrdersGrid from "./OrdersGrid"
+import OrderDetailsDialog from "./OrderDetailsDialog"
+import RejectOrderDialog from "./RejectOrderDialog"
 import { Order, OrderStatus } from "@/types/pdv"
+import { Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export interface LiveOrdersProps {
   newOrders: Order[];
@@ -21,6 +24,8 @@ export interface LiveOrdersProps {
   onCancelReject: () => void;
   onChangeStatus: (orderId: string, newStatus: OrderStatus) => void;
   onMarkDeliveryAsDelivered: (orderId: string) => void;
+  onApproveOrder: (order: Order) => void;
+  loading: boolean;
 }
 
 export default function LiveOrders({
@@ -39,7 +44,13 @@ export default function LiveOrders({
   onCancelReject,
   onChangeStatus,
   onMarkDeliveryAsDelivered,
+  onApproveOrder,
+  loading,
 }: LiveOrdersProps) {
+  const [isColumnLayout, setIsColumnLayout] = useState(true);
+
+  const handleToggleLayout = () => setIsColumnLayout(!isColumnLayout);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -49,8 +60,19 @@ export default function LiveOrders({
             Pantalla de cocina - Haz clic en cualquier pedido para ver detalles completos
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">Notificaciones automáticas activadas</span>
+
+        <div className="flex items-center space-x-3">
+          {loading && (
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Loader2 className="animate-spin h-4 w-4" />
+              <span>Cargando...</span>
+            </div>
+          )}
+
+          {/* Botón de cambio de vista */}
+          <Button variant="outline" size="sm" onClick={handleToggleLayout}>
+            Cambiar a vista {isColumnLayout ? "de filas" : "de columnas"}
+          </Button>
         </div>
       </div>
 
@@ -62,8 +84,10 @@ export default function LiveOrders({
         deliveredOrders={deliveredOrders}
         onOrderClick={onOrderClick}
         onRejectOrder={onRejectOrder}
+        onApproveOrder={onApproveOrder}
         onChangeStatus={onChangeStatus}
         onMarkDeliveryAsDelivered={onMarkDeliveryAsDelivered}
+        isColumnLayout={isColumnLayout}
       />
 
       <RejectOrderDialog

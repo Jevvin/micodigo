@@ -5,9 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-import { Category } from "@/types/menu";  // ✅ Importa tu type global
+import { Category } from "@/types/menu";
 
 export default function CategoryForm({
   category,
@@ -21,15 +19,16 @@ export default function CategoryForm({
   const [formData, setFormData] = useState({
     name: category?.name || "",
     description: category?.description || "",
-    section: category?.section || "platillos" as const,
     isActive: category?.isActive ?? true,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newCategory: Category = {
-      id: category?.id || `cat-${Date.now()}`,
-      ...formData,
+      id: category?.id ?? `cat-${crypto.randomUUID()}`, // ✅ generar ID si es nuevo
+      name: formData.name,
+      description: formData.description,
+      isActive: formData.isActive,
       sortOrder: category?.sortOrder || 0,
       products: category?.products || [],
     };
@@ -55,25 +54,6 @@ export default function CategoryForm({
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
         />
-      </div>
-
-      <div>
-        <Label htmlFor="section">Sección</Label>
-        <Select
-          value={formData.section}
-          onValueChange={(value: "platillos" | "postres" | "bebidas") =>
-            setFormData({ ...formData, section: value })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="platillos">Platillos</SelectItem>
-            <SelectItem value="postres">Postres</SelectItem>
-            <SelectItem value="bebidas">Bebidas</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="flex items-center space-x-2">

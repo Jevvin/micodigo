@@ -16,19 +16,8 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import type { ExtraItem } from "@/types/menu";
 
-/**
- * Interfaces
- */
-interface ExtraItem {
-  id: string;
-  groupId: string;
-  name: string;
-  price: number;
-  stock: number;
-  image?: string;
-  isActive: boolean;
-}
 
 /**
  * Componente SortableExtraItem

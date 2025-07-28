@@ -1,18 +1,5 @@
 "use client";
 
-/**
- * src/hooks/store/useCart.ts
- *
- * Hook global con Zustand para manejar el estado del carrito.
- *
- * - items en el carrito
- * - isDrawerOpen (Drawer lateral)
- * - isCheckoutOpen (Modal de checkout)
- * - addItem / removeItem / clearCart
- * - getTotal con extras
- * - open/closeDrawer() y open/closeCheckout() para UI
- */
-
 import { create } from "zustand";
 import { CartItem, CartItemExtra } from "@/types/store/cart";
 
@@ -22,11 +9,13 @@ interface CartState {
   isDrawerOpen: boolean;
   isCheckoutOpen: boolean;
 
-  /** Ordena extras por sort_order de grupo y extra */
   sortExtras: (extras?: CartItemExtra[]) => CartItemExtra[];
 
   addItem: (item: CartItem) => void;
   removeItem: (index: number) => void;
+  increaseQty: (index: number) => void;
+  decreaseQty: (index: number) => void;
+  updateItem: (index: number, newItem: CartItem) => void; // ✅ NUEVA FUNCIÓN
   clearCart: () => void;
   getTotal: () => number;
 
@@ -42,9 +31,8 @@ const useCartStore = create<CartState>((set, get) => ({
   isDrawerOpen: false,
   isCheckoutOpen: false,
 
-  /** Ordena extras por sort_order de grupo y extra */
   sortExtras: (extras) => {
-    if (!extras) return [] as CartItemExtra[];
+    if (!extras) return [];
     return extras.slice().sort((a, b) => {
       if (a.extra_group_sort_order !== b.extra_group_sort_order) {
         return a.extra_group_sort_order - b.extra_group_sort_order;
@@ -69,6 +57,35 @@ const useCartStore = create<CartState>((set, get) => ({
       items: state.items.filter((_, i) => i !== index),
     })),
 
+  increaseQty: (index) =>
+    set((state) => {
+      const updatedItems = [...state.items];
+      updatedItems[index].quantity += 1;
+      return { items: updatedItems };
+    }),
+
+  decreaseQty: (index) =>
+    set((state) => {
+      const updatedItems = [...state.items];
+      if (updatedItems[index].quantity > 1) {
+        updatedItems[index].quantity -= 1;
+      } else {
+        updatedItems.splice(index, 1);
+      }
+      return { items: updatedItems };
+    }),
+
+  // ✅ Nueva función para reemplazar un producto del carrito por uno actualizado
+  updateItem: (index, newItem) =>
+    set((state) => {
+      const updatedItems = [...state.items];
+      updatedItems[index] = {
+        ...newItem,
+        extras: get().sortExtras(newItem.extras),
+      };
+      return { items: updatedItems };
+    }),
+
   clearCart: () => set({ items: [] }),
 
   getTotal: () =>
@@ -76,7 +93,7 @@ const useCartStore = create<CartState>((set, get) => ({
       const extrasTotal = item.extras
         ? item.extras.reduce((eSum, e) => eSum + e.price * e.quantity, 0)
         : 0;
-      return sum + item.price * item.quantity + extrasTotal;
+      return sum + (item.price + extrasTotal) * item.quantity;
     }, 0),
 
   openDrawer: () => set({ isDrawerOpen: true }),

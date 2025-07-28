@@ -1,30 +1,69 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import { useParams, notFound, useRouter } from "next/navigation";
 import { supabase } from "@/app/utils/supabaseClient";
-import { Restaurant } from "@/types/store/store";
-import { Product } from "@/types/store/product";
 import RestaurantHeader from "@/components/store/header/RestaurantHeader";
 import RestaurantStatusBadge from "@/components/store/header/RestaurantStatusBadge";
 import RestaurantInfoModal from "@/components/store/infoModal/RestaurantInfoModal";
-import RestaurantTabs from "@/components/store/menu/RestaurantTabs";
-import ProductList from "@/components/store/menu/ProductList";
+import StickyCategoryTabs from "@/components/store/menu/StickyCategoryTabs";
+import MenuSection from "@/components/store/menu/MenuSection";
 import ProductDetailsModal from "@/components/store/menu/ProductDetailsModal";
 import CartDrawer from "@/components/store/cart/CartDrawer";
 import CheckoutModal from "@/components/store/cart/CheckoutModal";
 import useCartStore from "@/hooks/store/useCart";
 import useCheckout from "@/hooks/store/useCheckout";
+import { CustomerInfo } from "@/types/store/order";
+import { Product } from "@/types/store/product";
+import { useStoreMenu } from "@/hooks/store/useStoreMenu";
+import { useExtrasCache } from "@/hooks/store/useExtrasCache";
+import ProcessingOrderModal from "@/components/store/cart/ProcessingOrderModal";
+import CartButton from "@/components/store/cart/CartButton";
+import { CartItem } from "@/types/store/cart";
+import useProductModal from "@/hooks/store/useProductModal";
+import { useRestaurantStore } from "@/hooks/store/useRestaurantStore";
 
+function OrderTypeSelector() {
+  const { orderType, setOrderType } = useRestaurantStore();
+  return (
+    <div className="w-full max-w-md mx-auto my-4 flex justify-center gap-4">
+      <button
+        onClick={() => setOrderType("delivery")}
+        className={`px-4 py-2 rounded-lg ${
+          orderType === "delivery" ? "bg-black text-white" : "bg-gray-200 text-black"
+        }`}
+      >
+        A domicilio
+      </button>
+      <button
+        onClick={() => setOrderType("pickup")}
+        className={`px-4 py-2 rounded-lg ${
+          orderType === "pickup" ? "bg-black text-white" : "bg-gray-200 text-black"
+        }`}
+      >
+        Para llevar
+      </button>
+    </div>
+  );
+}
 export default function RestaurantPage() {
   const params = useParams();
+  const router = useRouter();
   const restaurantSlug = params.restaurantSlug as string;
 
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { restaurant, categories, products, loading } = useStoreMenu(restaurantSlug);
+  const { orderType, setOrderType } = useRestaurantStore();
+
+  const [isProcessingOpen, setIsProcessingOpen] = useState(false);
+  const [processingError, setProcessingError] = useState<string | null>(null);
   const [statusText, setStatusText] = useState("");
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [cities, setCities] = useState<{ id: number; name: string; state: string }[]>([]);
+  const [lastOrderData, setLastOrderData] = useState<{
+    customer: CustomerInfo;
+    address: any;
+    paymentMethod: "cash" | "card";
+  } | null>(null);
 
   const {
     isDrawerOpen,
@@ -36,36 +75,55 @@ export default function RestaurantPage() {
     items,
     removeItem,
     addItem,
+    updateItem,
     clearCart,
+    increaseQty,
+    decreaseQty,
   } = useCartStore();
 
+  const { getExtrasForProduct } = useExtrasCache();
   const checkout = useCheckout(items, restaurant?.id ?? 0);
 
-  const [categories, setCategories] = useState<string[]>(["Platillos", "Postres", "Bebidas"]);
-  const [selectedCategory, setSelectedCategory] = useState<string>(categories[0]);
+  const {
+    isOpen: showProductModal,
+    selectedProduct,
+    mode,
+    cartItem,
+    openAddModal,
+    openEditModal,
+    closeModal,
+  } = useProductModal();
 
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [showProductModal, setShowProductModal] = useState(false);
   const [extraGroups, setExtraGroups] = useState<any[]>([]);
 
-  const [cities, setCities] = useState<{ id: number; name: string; state: string }[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>(categories[0] || "");
+  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  /** ✅ Cargar lista de ciudades desde Supabase */
+  // Normaliza texto
+  const normalize = (str: string) => str.replace(/\s+/g, "-").toLowerCase();
+
+  useEffect(() => {
+    if (!restaurant && !loading) notFound();
+  }, [restaurant, loading]);
+
+  useEffect(() => {
+    if (restaurant?.accepts_delivery && !restaurant?.accepts_pickup) {
+      setOrderType("delivery");
+    } else if (!restaurant?.accepts_delivery && restaurant?.accepts_pickup) {
+      setOrderType("pickup");
+    } else {
+      setOrderType(null);
+    }
+  }, [restaurant, setOrderType]);
+
   const fetchCities = async () => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("cities")
         .select("id, name, state")
         .order("name", { ascending: true });
-
-      if (error) {
-        console.error("❌ Error cargando ciudades:", error);
-        setCities([]);
-      } else {
-        setCities(data || []);
-      }
-    } catch (err) {
-      console.error("❌ Error general al cargar ciudades:", err);
+      if (data) setCities(data);
+    } catch {
       setCities([]);
     }
   };
@@ -74,47 +132,23 @@ export default function RestaurantPage() {
     fetchCities();
   }, []);
 
-  /**
-   * ✅ Cargar grupos de extras asignados a un producto
-   */
   const fetchExtrasForProduct = async (productId: number) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("product_extra_groups")
-      .select(`
-        id,
-        sort_order,
-        extra_groups (
-          id,
-          name,
-          description,
-          rule_type,
-          is_required,
-          is_included,
-          max_selections,
-          min_selections,
-          extras (
-            id,
-            name,
-            price,
-            stock,
-            is_active,
-            sort_order
-          )
-        )
-      `)
+      .select(`id, sort_order, extra_groups (
+        id, name, description, rule_type, is_required, is_included,
+        max_selections, min_selections, is_visible,
+        extras (id, name, price, stock, is_active, sort_order)
+      )`)
       .eq("product_id", productId)
       .order("sort_order", { ascending: true });
 
-    if (error || !data) {
-      console.error("❌ Error cargando extras:", error);
-      setExtraGroups([]);
-      return;
-    }
-
-    const groups = data
-      .filter((row) => row.extra_groups !== null)
-      .map((row) => {
-        const group = row.extra_groups as any;
+    if (data) {
+      const groups = data.map((row) => {
+        const group = Array.isArray(row.extra_groups)
+          ? row.extra_groups[0]
+          : row.extra_groups;
+        if (!group || !group.is_visible) return null;
         return {
           id: group.id,
           name: group.name,
@@ -124,24 +158,53 @@ export default function RestaurantPage() {
           isIncluded: group.is_included,
           maxSelections: group.max_selections,
           minSelections: group.min_selections,
-          extras: (group.extras ?? []).slice().sort((a: any, b: any) => a.sort_order - b.sort_order),
+          extras: [...(group.extras ?? [])].sort((a, b) => a.sort_order - b.sort_order),
           sortOrder: row.sort_order,
         };
-      });
-
-    setExtraGroups(groups);
+      }).filter(Boolean);
+      setExtraGroups(groups);
+    } else {
+      setExtraGroups([]);
+    }
   };
 
-  /** ✅ Al abrir modal de producto */
-  const handleProductClick = (product: Product) => {
-    setSelectedProduct(product);
-    setShowProductModal(true);
-    fetchExtrasForProduct(product.id);
+  const handleProductClick = async (product: Product) => {
+    const cachedExtras = getExtrasForProduct(product.id);
+    if (cachedExtras?.length) {
+      setExtraGroups(cachedExtras);
+    } else {
+      await fetchExtrasForProduct(product.id);
+    }
+    openAddModal(product);
   };
 
-  const handleAddToCart = (item: any) => {
+  const handleEditItem = async (index: number) => {
+    const item = items[index];
+    const product = products.find((p) => p.id === item.productId);
+    if (!product) return;
+
+    const cachedExtras = getExtrasForProduct(product.id);
+    if (cachedExtras?.length) {
+      setExtraGroups(cachedExtras);
+    } else {
+      await fetchExtrasForProduct(product.id);
+    }
+
+    openEditModal(product, item);
+  };
+
+  const handleUpdateItem = (updatedItem: CartItem) => {
+    if (cartItem && mode === "edit") {
+      const index = items.findIndex((i) => i === cartItem);
+      if (index !== -1) updateItem(index, updatedItem);
+    }
+    closeModal();
+  };
+
+  const handleAddToCart = (item: CartItem) => {
     addItem(item);
     openDrawer();
+    closeModal();
   };
 
   const handleProceedToCheckout = () => {
@@ -149,141 +212,75 @@ export default function RestaurantPage() {
     openCheckout();
   };
 
-  /** ✅ Confirmar y guardar orden vía API */
-  const handleConfirmOrder = async (orderPayload: any) => {
+  const handleConfirmOrder = async (orderDataFromForm: {
+    customer: CustomerInfo;
+    address: any;
+    paymentMethod: "cash" | "card";
+  }) => {
     if (items.length === 0) {
       alert("Tu carrito está vacío");
       return;
     }
 
+    setIsProcessingOpen(true);
+    setProcessingError(null);
+    setLastOrderData(orderDataFromForm);
+
     try {
-      const response = await fetch("/api/store/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          restaurantId: restaurant?.id,
-          customer: orderPayload.customer,
-          address: orderPayload.address,
-          items: orderPayload.items,
-          total: orderPayload.total,
-          paymentMethod: orderPayload.paymentMethod,
-          deliveryType: "delivery",
-          specialInstructions: orderPayload.customer?.notes || "",
-        }),
-      });
+      const fullOrderData = {
+        restaurantId: restaurant?.id,
+        customer: orderDataFromForm.customer,
+        address: orderDataFromForm.address,
+        paymentMethod: orderDataFromForm.paymentMethod,
+        items,
+        total: checkout.total,
+        deliveryType: orderType || "delivery",
+        specialInstructions: "",
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error desconocido");
-      }
+      const confirmedOrder = await checkout.submitOrder(fullOrderData);
+      if (!confirmedOrder) throw new Error("No se pudo confirmar el pedido");
 
+      localStorage.setItem("confirmed_order", JSON.stringify(confirmedOrder));
       clearCart();
       closeCheckout();
-      alert("¡Pedido guardado exitosamente!");
+      setIsProcessingOpen(false);
+      router.push("/pedido-confirmado");
     } catch (err: any) {
       console.error("❌ ERROR AL GUARDAR ORDEN:", err);
-      alert(`Hubo un problema al guardar tu pedido: ${err.message || JSON.stringify(err)}`);
+      setProcessingError(err.message || "Error desconocido");
     }
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-
-      const { data: restaurantData, error } = await supabase
-        .from("restaurants")
-        .select("*, restaurant_hours(*)")
-        .eq("slug", restaurantSlug)
-        .single();
-
-      if (error || !restaurantData) {
-        setRestaurant(null);
-        setProducts([]);
-        setLoading(false);
-        return;
-      }
-
-      setRestaurant(restaurantData);
-
-      const { data: productsData } = await supabase
-        .from("menu_products")
-        .select("*")
-        .eq("restaurant_id", restaurantData.id)
-        .eq("is_available", true)
-        .order("sort_order", { ascending: true });
-
-      setProducts(productsData || []);
-      setLoading(false);
-    };
-
-    if (restaurantSlug) fetchData();
-  }, [restaurantSlug]);
-
-  useEffect(() => {
-    const updateStatus = () => {
-      if (!restaurant || !restaurant.restaurant_hours) {
-        setStatusText("Cerrado");
-        return;
-      }
-
-      const now = new Date();
-      const day = now.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
-      const todayHours = restaurant.restaurant_hours.find(
-        (h) => h.day_of_week === day
-      );
-
-      if (!todayHours || !todayHours.is_open || !todayHours.open_time || !todayHours.close_time) {
-        setStatusText("Cerrado");
-        return;
-      }
-
-      const [openH, openM] = todayHours.open_time.split(":").map(Number);
-      const [closeH, closeM] = todayHours.close_time.split(":").map(Number);
-
-      const openDate = new Date(now);
-      openDate.setHours(openH, openM, 0, 0);
-
-      const closeDate = new Date(now);
-      closeDate.setHours(closeH, closeM, 0, 0);
-
-      const minsToOpen = Math.floor((openDate.getTime() - now.getTime()) / 60000);
-      const minsToClose = Math.floor((closeDate.getTime() - now.getTime()) / 60000);
-
-      if (minsToOpen > 0 && minsToOpen <= 30) {
-        setStatusText(`Abre en ${minsToOpen} min`);
-      } else if (now >= openDate && now <= closeDate) {
-        if (minsToClose > 0 && minsToClose <= 30) {
-          setStatusText(`Cierra en ${minsToClose} min`);
-        } else {
-          setStatusText("Abierto");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((entry) => entry.isIntersecting);
+        if (visible.length > 0) {
+          const sorted = visible.sort(
+            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top
+          );
+          const id = sorted[0].target.id.replace("category-", "");
+          const matched = categories.find((c) => normalize(c) === id);
+          if (matched) setSelectedCategory(matched);
         }
-      } else {
-        setStatusText("Cerrado");
+      },
+      {
+        root: null,
+        rootMargin: "-64px 0px 0px 0px",
+        threshold: 0.1,
       }
-    };
-
-    updateStatus();
-    const interval = setInterval(updateStatus, 60000);
-    return () => clearInterval(interval);
-  }, [restaurant]);
-
-  if (loading) {
-    return (
-      <div className="text-center py-20">
-        <p className="text-lg">Cargando restaurante...</p>
-      </div>
     );
-  }
 
-  if (!restaurant) {
-    return (
-      <div className="text-center py-20">
-        <p className="text-lg text-red-500">Restaurante no encontrado</p>
-      </div>
-    );
-  }
+    const elements = categories
+      .map((c) => categoryRefs.current[normalize(c)])
+      .filter(Boolean) as HTMLDivElement[];
+
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [categories]);
+
+  if (!restaurant) return null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -299,12 +296,20 @@ export default function RestaurantPage() {
         </div>
       </div>
 
+      {items.length > 0 && !isDrawerOpen && !isCheckoutOpen && restaurant?.accepting_orders && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <CartButton
+            count={items.reduce((total, item) => total + item.quantity, 0)}
+            onClick={openDrawer}
+          />
+        </div>
+      )}
+
       <div className="-mt-6 mx-4 mb-6 relative z-10">
         <RestaurantHeader
           restaurant={restaurant}
           statusText={statusText}
           onOpenInfo={() => setShowInfoModal(true)}
-          onOpenCart={openDrawer}
         />
       </div>
 
@@ -315,32 +320,70 @@ export default function RestaurantPage() {
         statusText={statusText}
       />
 
-      <div className="max-w-7xl mx-auto px-4 pb-8">
-        <RestaurantTabs
-          categories={categories}
-          selectedCategory={selectedCategory}
-          onSelectCategory={(category) => setSelectedCategory(category)}
-        />
-        <ProductList
-          products={products}
-          onProductClick={handleProductClick}
-        />
+      {restaurant.accepts_delivery && restaurant.accepts_pickup && <OrderTypeSelector />}
+
+      <StickyCategoryTabs
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onCategoryClick={(category) => {
+          setSelectedCategory(category);
+          const el = categoryRefs.current[normalize(category)];
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }}
+      />
+
+      <div className="w-[95%] max-w-7xl mx-auto space-y-12 mt-6">
+        {loading ? (
+          <p className="text-center text-gray-500">Cargando menú...</p>
+        ) : (
+          categories.map((category) => {
+            const categoryProducts = products.filter(
+              (p) => p.menu_categories?.name === category
+            );
+            return (
+              <div
+                key={category}
+                id={`category-${normalize(category)}`}
+                ref={(el) => {
+                  if (el) categoryRefs.current[normalize(category)] = el;
+                }}
+              >
+                <MenuSection
+                  title={category}
+                  products={categoryProducts}
+                  onSelectProduct={handleProductClick}
+                />
+              </div>
+            );
+          })
+        )}
       </div>
 
       <ProductDetailsModal
         open={showProductModal}
-        onClose={() => setShowProductModal(false)}
+        onClose={closeModal}
         product={selectedProduct}
         onAddToCart={handleAddToCart}
+        onUpdateItem={handleUpdateItem}
         extraGroups={extraGroups}
+        mode={mode}
+        cartItem={cartItem}
       />
 
       <CartDrawer
         open={isDrawerOpen}
         onClose={closeDrawer}
         cartItems={items}
-        onRemoveItem={(index) => removeItem(index)}
+        onRemoveItem={removeItem}
+        onIncreaseQty={increaseQty}
+        onDecreaseQty={decreaseQty}
         onProceedToCheckout={handleProceedToCheckout}
+        allProducts={products}
+        restaurantName={restaurant?.name || "Restaurante"}
+        onAddSuggestedProduct={handleProductClick}
+        onEditItem={handleEditItem}
       />
 
       <CheckoutModal
@@ -350,7 +393,19 @@ export default function RestaurantPage() {
         onRemoveItem={removeItem}
         onConfirm={handleConfirmOrder}
         fetchCities={fetchCities}
-        cities={cities || []}
+        cities={cities}
+      />
+
+      <ProcessingOrderModal
+        open={isProcessingOpen}
+        error={processingError}
+        onRetry={async () => {
+          if (lastOrderData) await handleConfirmOrder(lastOrderData);
+        }}
+        onClose={() => {
+          setIsProcessingOpen(false);
+          setProcessingError(null);
+        }}
       />
     </div>
   );

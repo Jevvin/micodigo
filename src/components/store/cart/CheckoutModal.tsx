@@ -1,13 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { X, MapPin, Banknote, CreditCard, Loader2 } from "lucide-react";
+import {
+  X,
+  MapPin,
+  Banknote,
+  CreditCard,
+  Loader2,
+} from "lucide-react";
+import { CustomerInfo } from "@/types/store/order";
 
 export default function CheckoutModal({
   open,
@@ -22,7 +35,11 @@ export default function CheckoutModal({
   onClose: () => void;
   cartItems: any[];
   onRemoveItem: (index: number) => void;
-  onConfirm: (orderData: any) => void;
+  onConfirm: (orderData: {
+    customer: CustomerInfo;
+    address: any;
+    paymentMethod: "cash" | "card";
+  }) => void;
   fetchCities: () => Promise<void>;
   cities: { id: number; name: string; state: string }[];
 }) {
@@ -39,13 +56,11 @@ export default function CheckoutModal({
 
   const [loadingCities, setLoadingCities] = useState(false);
 
-  // Errores simples
   const [nameError, setNameError] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [streetError, setStreetError] = useState("");
   const [cityError, setCityError] = useState("");
 
-  // Cargar ciudades al abrir
   useEffect(() => {
     if (open && cities.length === 0) {
       setLoadingCities(true);
@@ -53,13 +68,12 @@ export default function CheckoutModal({
     }
   }, [open]);
 
-  // Calcular costos
   const subtotal = cartItems.reduce((sum, item) => {
     const extrasTotal = (item.extras || []).reduce(
       (acc: number, extra: any) => acc + extra.price * (extra.quantity || 1),
       0
     );
-    return sum + ((item.price + extrasTotal) * item.quantity);
+    return sum + item.price * item.quantity + extrasTotal;
   }, 0);
 
   const envio = 30;
@@ -68,7 +82,6 @@ export default function CheckoutModal({
   const handleConfirm = () => {
     let hasError = false;
 
-    // Validaciones obligatorias
     if (!name.trim()) {
       setNameError("Por favor añade tu nombre");
       hasError = true;
@@ -92,7 +105,6 @@ export default function CheckoutModal({
     if (hasError) return;
 
     const city = cities.find((c) => String(c.id) === selectedCityId);
-
     if (!city) {
       setCityError("Selecciona una ciudad válida");
       return;
@@ -108,35 +120,41 @@ export default function CheckoutModal({
     };
 
     const orderData = {
-  customer: { id: null, name, phone, email },
-  paymentMethod,
-  address: addressData,
-  items: cartItems,
-  subtotal,
-  envio,
-  total,
-};
+      customer: { id: null, name, phone, email, notes: reference },
+      address: addressData,
+      paymentMethod,
+      items: cartItems,
+      subtotal,
+      envio,
+      total,
+    };
 
     onConfirm(orderData);
     onClose();
   };
-
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader className="flex items-center justify-between">
-          <div>
-            <CardTitle>Finalizar Pedido</CardTitle>
-            <CardDescription>Completa tus datos para procesar el pedido</CardDescription>
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-bold flex-wrap">
+              Finalizar Pedido
+            </DialogTitle>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-800 transition shrink-0"
+              aria-label="Cerrar"
+            >
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-6 w-6 p-0">
-            <X className="h-5 w-5 text-gray-600" />
-          </Button>
-        </CardHeader>
+        </DialogHeader>
 
-        <CardContent className="space-y-6">
+        <Separator />
+
+        <div className="space-y-6 py-4">
           {/* Información de Contacto */}
           <div className="space-y-4">
             <h3 className="font-medium">Información de Contacto</h3>
@@ -257,7 +275,7 @@ export default function CheckoutModal({
             <h3 className="font-medium">Método de Pago</h3>
             <RadioGroup
               value={paymentMethod}
-              onValueChange={(v) => setPaymentMethod(v as "cash" | "card")}
+              onValueChange={(v: any) => setPaymentMethod(v)}
               className="space-y-2"
             >
               <div className="flex items-center space-x-2">
@@ -302,8 +320,8 @@ export default function CheckoutModal({
               Confirmar Pedido
             </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

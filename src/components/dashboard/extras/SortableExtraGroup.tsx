@@ -5,8 +5,21 @@ import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GripVertical, Edit, Plus, Trash2, ImageIcon } from "lucide-react";
-import { DndContext, closestCenter, useSensor, useSensors, PointerSensor, KeyboardSensor } from "@dnd-kit/core";
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
@@ -24,57 +37,31 @@ import ExtraGroupForm from "./ExtraGroupForm";
 import ExtraItemForm from "./ExtraItemForm";
 import SortableExtraItem from "./SortableExtraItem";
 
-/**
- * Interfaces de datos
- */
-interface ExtraItem {
-  id: string;
-  groupId: string;
-  name: string;
-  price: number;
-  stock: number;
-  image?: string;
-  isActive: boolean;
-}
+import type { ExtraGroup, ExtraItem } from "@/types/menu";
 
-interface ExtraGroup {
-  id: string;
-  restaurantId?: string;
-  name: string;
-  description: string;
-  ruleType: "single" | "multiple" | "quantity";
-  isRequired: boolean;
-  maxSelections: number;
-  minSelections: number;
-  isIncluded: boolean;
-  sortOrder: number;
-  items: ExtraItem[];
-}
+type SortableExtraGroupProps = {
+  group: ExtraGroup;
+  onUpdateGroup: (group: ExtraGroup) => void;
+  onDeleteGroup: (groupId: string) => void;
+  onUpdateItem: (groupId: string, item: ExtraItem) => void;
+  onDeleteItem: (groupId: string, itemId: string) => void;
+  handleReorderItems: (groupId: string, newItems: ExtraItem[]) => void;
+};
 
-/**
- * Props del componente
- */
 export default function SortableExtraGroup({
   group,
   onUpdateGroup,
   onDeleteGroup,
   onUpdateItem,
   onDeleteItem,
-}: {
-  group: ExtraGroup;
-  onUpdateGroup: (group: ExtraGroup) => void;
-  onDeleteGroup: (groupId: string) => void;
-  onUpdateItem: (groupId: string, item: ExtraItem) => void;
-  onDeleteItem: (groupId: string, itemId: string) => void;
-}) {
-  // DnD kit
+  handleReorderItems,
+}: SortableExtraGroupProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: group.id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
-  // Estado local
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [isEditingItem, setIsEditingItem] = useState(false);
@@ -88,15 +75,22 @@ export default function SortableExtraGroup({
   const handleItemDragEnd = (event: any) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+
     const oldIndex = group.items.findIndex((i) => i.id === active.id);
     const newIndex = group.items.findIndex((i) => i.id === over.id);
-    const newItems = arrayMove(group.items, oldIndex, newIndex);
+
+    const newItems = arrayMove(group.items, oldIndex, newIndex).map((item, index) => ({
+      ...item,
+      sortOrder: index,
+    }));
+
     onUpdateGroup({ ...group, items: newItems });
+    handleReorderItems(String(group.id), newItems);
   };
 
   return (
     <div ref={setNodeRef} style={style}>
-      <AccordionItem value={group.id} className="border rounded-lg mb-4">
+      <AccordionItem value={String(group.id)} className="border rounded-lg mb-4">
         <AccordionTrigger className="px-4 hover:no-underline">
           <div className="flex items-center justify-between w-full mr-4">
             <div className="flex items-center space-x-3">
@@ -113,13 +107,12 @@ export default function SortableExtraGroup({
                 {group.isRequired ? "Obligatorio" : "Opcional"}
               </Badge>
               <Badge variant="outline">{group.ruleType}</Badge>
-              <span className="text-sm text-gray-500">{group.items.length} extras</span>
+              <span className="text-sm text-gray-500">{group.items?.length || 0} extras</span>
             </div>
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-4 pb-4">
           <div className="space-y-4">
-            {/* Botones de acciones para el grupo */}
             <div className="flex justify-between items-center border-b pb-3">
               <div className="flex space-x-2">
                 <Button variant="outline" size="sm" onClick={() => setIsEditingGroup(true)}>
@@ -149,7 +142,7 @@ export default function SortableExtraGroup({
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
                       className={buttonVariants({ variant: "destructive" })}
-                      onClick={() => onDeleteGroup(group.id)}
+                      onClick={() => onDeleteGroup(String(group.id))}
                     >
                       Sí, eliminar
                     </AlertDialogAction>
@@ -158,20 +151,34 @@ export default function SortableExtraGroup({
               </AlertDialog>
             </div>
 
-            {/* Lista de extras con drag & drop */}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleItemDragEnd}>
               <SortableContext items={group.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-3">
                   {group.items.map((item) => (
                     <SortableExtraItem
                       key={item.id}
-                      item={{ ...item, groupId: group.id }}  // ✅ Agregado groupId explícito
+                      item={{
+                        ...item,
+                        groupId: String(group.id),
+                        sortOrder: item.sortOrder ?? 0,
+                      }}
                       onEdit={() => {
-                        setItemBeingEdited({ ...item, groupId: group.id });  // ✅ Agregado groupId
+                        setItemBeingEdited({
+                          ...item,
+                          groupId: String(group.id),
+                          sortOrder: item.sortOrder ?? 0,
+                        });
                         setIsEditingItem(true);
                       }}
-                      onDelete={() => onDeleteItem(group.id, item.id)}
-                      onToggleActive={() => onUpdateItem(group.id, { ...item, isActive: !item.isActive, groupId: group.id })}  // ✅ Agregado groupId
+                      onDelete={() => onDeleteItem(String(group.id), String(item.id))}
+                      onToggleActive={() =>
+                        onUpdateItem(String(group.id), {
+                          ...item,
+                          groupId: String(group.id),
+                          isActive: !item.isActive,
+                          sortOrder: item.sortOrder ?? 0,
+                        })
+                      }
                     />
                   ))}
                 </div>
@@ -191,7 +198,6 @@ export default function SortableExtraGroup({
         </AccordionContent>
       </AccordionItem>
 
-      {/* Dialog para editar grupo */}
       <Dialog open={isEditingGroup} onOpenChange={setIsEditingGroup}>
         <DialogContent>
           <DialogHeader>
@@ -209,19 +215,20 @@ export default function SortableExtraGroup({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para agregar Item */}
       <Dialog open={isAddingItem} onOpenChange={setIsAddingItem}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Agregar Extra</DialogTitle>
-            <DialogDescription>
-              Crea un nuevo extra para este grupo
-            </DialogDescription>
+            <DialogDescription>Crea un nuevo extra para este grupo</DialogDescription>
           </DialogHeader>
           <ExtraItemForm
-            extraGroupId={group.id}
+            groupId={String(group.id)} 
             onSave={(newItem) => {
-              onUpdateItem(group.id, { ...newItem, groupId: group.id }); // ✅ Agregado groupId
+              onUpdateItem(String(group.id), {
+                ...newItem,
+                groupId: String(group.id),
+                sortOrder: newItem.sortOrder ?? 0,
+              });
               setIsAddingItem(false);
             }}
             onCancel={() => setIsAddingItem(false)}
@@ -229,7 +236,6 @@ export default function SortableExtraGroup({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para editar Item */}
       <Dialog open={isEditingItem} onOpenChange={setIsEditingItem}>
         <DialogContent>
           <DialogHeader>
@@ -238,16 +244,19 @@ export default function SortableExtraGroup({
           </DialogHeader>
           {itemBeingEdited && (
             <ExtraItemForm
-  extraGroupId={group.id}
-  item={itemBeingEdited ? { ...itemBeingEdited, extraGroupId: itemBeingEdited.groupId } : undefined}
-  onSave={(updatedItem) => {
-    onUpdateItem(group.id, { ...updatedItem, groupId: group.id });
-    setIsEditingItem(false);
-    setItemBeingEdited(null);
-  }}
-  onCancel={() => setIsEditingItem(false)}
-/>
-
+              groupId={String(group.id)}
+              item={itemBeingEdited}
+              onSave={(updatedItem) => {
+                onUpdateItem(String(group.id), {
+                  ...updatedItem,
+                  groupId: String(group.id),
+                  sortOrder: updatedItem.sortOrder ?? 0,
+                });
+                setIsEditingItem(false);
+                setItemBeingEdited(null);
+              }}
+              onCancel={() => setIsEditingItem(false)}
+            />
           )}
         </DialogContent>
       </Dialog>

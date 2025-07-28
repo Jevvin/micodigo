@@ -5,28 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { uploadProductImageToStorage } from "@/app/utils/storageUpload";
-
-// 📌 Define el tipo ExtraItem si no lo tienes ya importado
-interface ExtraItem {
-  id: string;
-  extraGroupId: string;
-  name: string;
-  price: number;
-  stock: number;
-  image?: string;
-  isActive: boolean;
-}
+import type { ExtraItem } from "@/types/menu"; // ✅ Usa el tipo global
 
 // ✅ Formulario reutilizable para CREAR o EDITAR un ExtraItem
 export default function ExtraItemForm({
-  extraGroupId,
+  groupId,
   item,
   onSave,
   onCancel,
 }: {
-  extraGroupId: string;
+  groupId: string;
   item?: ExtraItem | null;
   onSave: (item: ExtraItem) => void;
   onCancel: () => void;
@@ -49,7 +38,7 @@ export default function ExtraItemForm({
 
     setUploading(true);
 
-    const result = await uploadProductImageToStorage(extraGroupId, file);
+    const result = await uploadProductImageToStorage(groupId, file);
 
     if (result.success && result.url) {
       setFormData({ ...formData, image: result.url });
@@ -66,12 +55,13 @@ export default function ExtraItemForm({
 
     const newItem: ExtraItem = {
       id: item?.id || `item-${Date.now()}`,
-      extraGroupId,
+      groupId, // ✅ Ya no usamos "extraGroupId"
       name: formData.name,
       price: formData.price,
       stock: formData.stock,
       isActive: formData.isActive,
       image: formData.image || "",
+      sortOrder: item?.sortOrder ?? 0, // ✅ Para orden visual
     };
 
     onSave(newItem);

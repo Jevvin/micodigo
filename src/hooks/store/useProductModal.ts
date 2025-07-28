@@ -1,38 +1,45 @@
 "use client";
 
-/**
- * useProductModal.ts
- * 
- * Hook para controlar la apertura/cierre del modal de detalles de producto.
- * 
- * Retorna:
- * - selectedProduct
- * - isOpen
- * - openModal(product)
- * - closeModal()
- */
-
 import { useState } from "react";
 import { Product } from "@/types/store/product";
+import { CartItem } from "@/types/store/cart";
+
+type Mode = "add" | "edit";
 
 export default function useProductModal() {
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [mode, setMode] = useState<Mode>("add");
+  const [cartItem, setCartItem] = useState<CartItem | undefined>(undefined);
 
-  const openModal = (product: Product) => {
+  const openAddModal = (product: Product) => {
     setSelectedProduct(product);
+    setCartItem(undefined);
+    setMode("add");
+    setIsOpen(true);
+  };
+
+  const openEditModal = (product: Product, item: CartItem) => {
+    setSelectedProduct(product);
+    setCartItem(item);
+    setMode("edit");
     setIsOpen(true);
   };
 
   const closeModal = () => {
     setSelectedProduct(null);
+    setCartItem(undefined);
+    setMode("add");
     setIsOpen(false);
   };
 
   return {
-    selectedProduct,
     isOpen,
-    openModal,
-    closeModal
+    selectedProduct,
+    mode,
+    cartItem,
+    openAddModal,
+    openEditModal,
+    closeModal,
   };
 }

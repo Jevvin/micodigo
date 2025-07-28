@@ -1,4 +1,5 @@
-// src/app/api/store/tracking.ts
+// src/app/api/store/tracking/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
@@ -9,7 +10,10 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const orderId = searchParams.get("orderId");
 
+  console.log("[TRACKING] orderId recibido:", orderId);
+
   if (!orderId) {
+    console.warn("[TRACKING] No se proporcionó orderId");
     return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
   }
 
@@ -17,19 +21,20 @@ export async function GET(req: NextRequest) {
     .from("orders")
     .select(`
       id,
-      status,
-      estimated_delivery,
-      delivered_at,
-      out_for_delivery_time,
-      created_at
+      status
     `)
     .eq("id", orderId)
     .single();
 
   if (error) {
-    console.error("Error fetching order tracking:", error);
-    return NextResponse.json({ error: "Failed to fetch order tracking" }, { status: 500 });
+    console.error("[TRACKING] Error al consultar Supabase:", error);
+    return NextResponse.json(
+      { error: error.message || "Error desconocido al consultar el pedido" },
+      { status: 500 }
+    );
   }
+
+  console.log("[TRACKING] Pedido encontrado:", data);
 
   return NextResponse.json({ order: data });
 }

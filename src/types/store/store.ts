@@ -6,26 +6,31 @@
  */
 
 export interface Restaurant {
-  id: number
-  name: string
-  description?: string
-  slug: string
-  address?: string
-  phone?: string
-  cover_image_url?: string
-  logo_image_url?: string
-  is_active: boolean
+  id: number;
+  name: string;
+  description?: string;
+  slug: string;
+  address?: string;
+  phone?: string;
+  cover_image_url?: string;
+  logo_image_url?: string;
+  is_active: boolean;
 
-  restaurant_hours?: RestaurantHour[]
+  // ✅ Nuevas propiedades necesarias para la lógica de pedidos
+  accepting_orders: boolean;
+  accepts_delivery: boolean;
+  accepts_pickup: boolean;
+
+  restaurant_hours?: RestaurantHour[];
 }
 
 export interface RestaurantHour {
-  id: number
-  restaurant_id: number
-  day_of_week: string
-  is_open: boolean
-  open_time?: string
-  close_time?: string
+  id: number;
+  restaurant_id: number;
+  day_of_week: string;
+  is_open: boolean;
+  open_time?: string;
+  close_time?: string;
 }
 
 export interface CheckoutData {

@@ -1,16 +1,29 @@
 // ✅ Todos los tipos centralizados aquí
 
-export type ExtraGroup = {
-  id: string;
-  restaurantId?: string;
+export type ExtraItem = {
+  id: string | number;
+  groupId: string | number;     // Relación con el grupo padre
   name: string;
-  description: string;
+  price: number;
+  stock: number;
+  image?: string | null;
+  isActive: boolean;
+  sortOrder: number;            // ✅ Usado para orden visual en frontend
+};
+
+export type ExtraGroup = {
+  id: string | number;
+  restaurantId: string;
+  name: string;
+  description?: string;
   ruleType: "single" | "multiple" | "quantity";
   isRequired: boolean;
   maxSelections: number;
   minSelections: number;
   isIncluded: boolean;
-  sortOrder: number;
+  isVisible: boolean;           // ✅ Usado para mostrar u ocultar grupo
+  sortOrder: number;            // ✅ Orden de los grupos
+  items: ExtraItem[];           // ✅ Siempre debe ser array (aunque vacío), nunca undefined
 };
 
 export type Product = {
@@ -19,10 +32,11 @@ export type Product = {
   restaurantId?: string;
   name: string;
   description: string;
-  price: number;           // ✅ Precio público para venta
-  stock: number;           // ✅ Stock actual
+  price: number;
+  stock: number;
   isAvailable: boolean;
   image?: string;
+  sortOrder: number; 
   assignedExtraGroups: {
     extraGroupId: string;
     sortOrder: number;
@@ -33,7 +47,6 @@ export type Category = {
   id: string;
   name: string;
   description: string;
-  section: "platillos" | "postres" | "bebidas";
   isActive: boolean;
   sortOrder: number;
   products: Product[];

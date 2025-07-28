@@ -6,25 +6,23 @@
  * Este componente muestra la cabecera del restaurante:
  * - Logo, nombre, descripción
  * - Badge de estado (abierto/cerrado)
- * - Botón de carrito
  * - Botón para abrir el modal de información
+ * 
+ * ⚠️ El botón de carrito fue eliminado porque ahora usamos el botón flotante.
  */
 
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import RestaurantStatusBadge from "./RestaurantStatusBadge";
 
 export default function RestaurantHeader({
   restaurant,
   statusText,
   onOpenInfo,
-  onOpenCart
 }: {
   restaurant: any;
   statusText: string;
   onOpenInfo: () => void;
-  onOpenCart: () => void;
 }) {
   return (
     <div className="-mt-6 mx-4 mb-6 relative z-10">
@@ -72,16 +70,6 @@ export default function RestaurantHeader({
               </div>
             </div>
           </div>
-
-          {/* BOTÓN CARRITO */}
-          <Button
-            variant="default"
-            className="bg-black text-white hover:bg-gray-900 px-6 py-3 rounded-lg text-sm font-normal"
-            onClick={onOpenCart}
-          >
-            <ShoppingCart className="h-5 w-5 mr-2" />
-            Carrito (0)
-          </Button>
         </div>
       </Card>
     </div>
